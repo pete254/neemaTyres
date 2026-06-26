@@ -6,3 +6,347 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Position {
+  AP
+  DIFF
+  STEERING
+  NONE
+}
+
+enum PurchaseTerms {
+  CASH
+  CREDIT
+  FREE
+}
+
+enum PaymentChannel {
+  CASH
+  MPESA
+  DEBT
+}
+
+// DebtCollection only accepts CASH or MPESA — use a narrower enum
+enum CollectionChannel {
+  CASH
+  MPESA
+}
+
+enum ReturnType {
+  SALE_RETURN
+  PURCHASE_RETURN
+}
+
+enum OpeningBalanceKind {
+  STOCK
+  DEBTOR
+  SUPPLIER
+}
+
+enum FlagType {
+  NEGATIVE_STOCK
+  PRICE_ANOMALY
+  OFF_INVENTORY
+  DUPLICATE_CUSTOMER
+  DISCREPANCY
+}
+
+// ─── Reference / catalog ─────────────────────────────────────────────────────
+
+model Brand {
+  id       String           @id @default(cuid())
+  name     String           @unique
+  variants ProductVariant[]
+}
+
+model ProductVariant {
+  id                 String   @id @default(cuid())
+  sizeCanonical      String
+  brandId            String
+  brand              Brand    @relation(fields: [brandId], references: [id])
+  position           Position
+  subLabel           String?
+  patternCode        String?
+  referenceSellPrice Decimal? @db.Decimal(14, 2)
+  wacCost            Decimal  @default(0) @db.Decimal(14, 2)
+  qtyOnHand          Int      @default(0)
+  isOffInventory     Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  recordedById       String
+  recordedBy         User     @relation(fields: [recordedById], references: [id])
+
+  purchaseLines         PurchaseLine[]
+  saleLines             SaleLine[]
+  returns               Return[]
+  openingBalanceEntries OpeningBalanceEntry[]
+
+  // Two tyres are the same variant only if all four keys match.
+  // Note: NULL subLabel is treated as distinct by Postgres unique indexes —
+  // enforce the "one NULL subLabel per size+brand+position" rule in the engine.
+  @@unique([sizeCanonical, brandId, position, subLabel])
+  @@index([sizeCanonical])
+  @@index([brandId])
+}
+
+// Maps messy size shorthand ("315", "11R", "825R20") → canonical
+model SizeAlias {
+  id            String @id @default(cuid())
+  alias         String @unique
+  sizeCanonical String
+}
+
+// ─── Parties ─────────────────────────────────────────────────────────────────
+
+model Customer {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String?
+  createdAt    DateTime @default(now())
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+
+  sales                 Sale[]
+  debtCollections       DebtCollection[]
+  openingBalanceEntries OpeningBalanceEntry[]
+
+  @@index([name])
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  openingBalance Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+
+  purchases             Purchase[]
+  supplierPayments      SupplierPayment[]
+  ledgerEntries         LedgerEntry[]
+  openingBalanceEntries OpeningBalanceEntry[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  recordedVariants         ProductVariant[]
+  recordedCustomers        Customer[]
+  recordedPurchases        Purchase[]
+  recordedSales            Sale[]
+  recordedPayments         Payment[]
+  recordedDebtCollections  DebtCollection[]
+  recordedSupplierPayments SupplierPayment[]
+  recordedReturns          Return[]
+  recordedOpeningBalances  OpeningBalanceEntry[]
+  resolvedFlags            ExceptionFlag[]
+}
+
+// ─── Transactions (immutable; reverse with a counter-entry, never delete) ────
+
+model Purchase {
+  id           String        @id @default(cuid())
+  supplierId   String?
+  supplier     Supplier?     @relation(fields: [supplierId], references: [id])
+  date         DateTime
+  terms        PurchaseTerms
+  recordedById String
+  recordedBy   User          @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime      @default(now())
+
+  lines PurchaseLine[]
+
+  @@index([supplierId, date])
+  @@index([date])
+}
+
+model PurchaseLine {
+  id         String         @id @default(cuid())
+  purchaseId String
+  purchase   Purchase       @relation(fields: [purchaseId], references: [id])
+  variantId  String
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+  qty        Int
+  unitCost   Decimal        @db.Decimal(14, 2)
+  lineTotal  Decimal        @db.Decimal(14, 2)
+
+  returns Return[]
+
+  @@index([purchaseId])
+  @@index([variantId])
+}
+
+model Sale {
+  id           String    @id @default(cuid())
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  date         DateTime
+  totalAmount  Decimal   @db.Decimal(14, 2)
+  recordedById String
+  recordedBy   User      @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  lines    SaleLine[]
+  payments Payment[]
+
+  @@index([customerId, date])
+  @@index([date])
+}
+
+model SaleLine {
+  id             String         @id @default(cuid())
+  saleId         String
+  sale           Sale           @relation(fields: [saleId], references: [id])
+  variantId      String
+  variant        ProductVariant @relation(fields: [variantId], references: [id])
+  qty            Int
+  unitPrice      Decimal        @db.Decimal(14, 2)
+  unitCostAtSale Decimal        @db.Decimal(14, 2)
+  lineTotal      Decimal        @db.Decimal(14, 2)
+  flags          String[]
+
+  returns Return[]
+
+  @@index([saleId])
+  @@index([variantId])
+}
+
+model Payment {
+  id           String         @id @default(cuid())
+  saleId       String
+  sale         Sale           @relation(fields: [saleId], references: [id])
+  channel      PaymentChannel
+  amount       Decimal        @db.Decimal(14, 2)
+  recordedById String
+  recordedBy   User           @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@index([saleId])
+}
+
+model DebtCollection {
+  id           String            @id @default(cuid())
+  customerId   String
+  customer     Customer          @relation(fields: [customerId], references: [id])
+  amount       Decimal           @db.Decimal(14, 2)
+  channel      CollectionChannel
+  date         DateTime
+  note         String?
+  recordedById String
+  recordedBy   User              @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime          @default(now())
+
+  @@index([customerId, date])
+}
+
+model SupplierPayment {
+  id           String   @id @default(cuid())
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  amount       Decimal  @db.Decimal(14, 2)
+  date         DateTime
+  note         String?
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([supplierId, date])
+}
+
+// Reversal of a sale line or purchase line; never deletes the original.
+model Return {
+  id                     String         @id @default(cuid())
+  type                   ReturnType
+  originalSaleLineId     String?
+  originalSaleLine       SaleLine?      @relation(fields: [originalSaleLineId], references: [id])
+  originalPurchaseLineId String?
+  originalPurchaseLine   PurchaseLine?  @relation(fields: [originalPurchaseLineId], references: [id])
+  variantId              String
+  variant                ProductVariant @relation(fields: [variantId], references: [id])
+  qty                    Int
+  unitValue              Decimal        @db.Decimal(14, 2)
+  date                   DateTime
+  recordedById           String
+  recordedBy             User           @relation(fields: [recordedById], references: [id])
+  createdAt              DateTime       @default(now())
+
+  @@index([variantId])
+}
+
+// ─── Period / ledger ─────────────────────────────────────────────────────────
+
+// Defined by datetime boundaries; closing stock of period N = opening of N+1
+model Period {
+  id                String   @id @default(cuid())
+  name              String
+  startAt           DateTime
+  endAt             DateTime
+  openingSnapshotId String?  // tag linking to OpeningBalanceEntry rows for this period
+}
+
+// Discriminated record: one row per seed item (stock unit, debtor balance, supplier balance).
+// Only the fields relevant to `kind` will be non-null.
+model OpeningBalanceEntry {
+  id   String             @id @default(cuid())
+  kind OpeningBalanceKind
+
+  // STOCK
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+  qty       Int?
+  unitCost  Decimal?        @db.Decimal(14, 2)
+
+  // DEBTOR
+  customerId String?
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  asOfDate   DateTime?
+
+  // SUPPLIER
+  supplierId String?
+  supplier   Supplier?  @relation(fields: [supplierId], references: [id])
+
+  // DEBTOR + SUPPLIER
+  amount Decimal? @db.Decimal(14, 2)
+  note   String?
+
+  snapshotTag  String?  // groups entries belonging to the same Period snapshot
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([snapshotTag])
+}
+
+// Reproduces the Neema-style supplier account statement.
+// Running balance recomputed by the engine on each posting.
+model LedgerEntry {
+  id             String   @id @default(cuid())
+  supplierId     String
+  supplier       Supplier @relation(fields: [supplierId], references: [id])
+  date           DateTime
+  description    String
+  debit          Decimal  @db.Decimal(14, 2)
+  credit         Decimal  @db.Decimal(14, 2)
+  runningBalance Decimal  @db.Decimal(14, 2)
+
+  @@index([supplierId, date])
+}
+
+// Human-review queue for anomalies detected during posting or import.
+model ExceptionFlag {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  flagType     FlagType
+  details      Json
+  resolved     Boolean  @default(false)
+  resolvedById String?
+  resolvedBy   User?    @relation(fields: [resolvedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([resolved, flagType])
+  @@index([entityType, entityId])
+}
