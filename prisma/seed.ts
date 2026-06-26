@@ -10,8 +10,8 @@ const db = new PrismaClient({ adapter });
 
 async function main() {
   const users = [
-    { name: "Neema", email: "neema@kwambira.co.ke", password: "neema1234" },
-    { name: "Staff", email: "staff@kwambira.co.ke", password: "staff1234" },
+    { name: "Martin", email: "martinboeing254@gmail.com", password: "2026" },
+    { name: "Wacera", email: "Wacera@gmail.com", password: "2026" },
   ];
   for (const u of users) {
     const passwordHash = await bcrypt.hash(u.password, 12);
