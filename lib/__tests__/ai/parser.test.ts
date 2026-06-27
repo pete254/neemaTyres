@@ -1,24 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ── Mock Google Generative AI SDK ─────────────────────────────────────────────
+// ── Mock Google GenAI SDK ─────────────────────────────────────────────────────
 const mockGenerateContent = vi.hoisted(() => vi.fn());
 
-vi.mock("@google/generative-ai", () => {
-  class MockGoogleGenerativeAI {
-    getGenerativeModel() {
-      return { generateContent: mockGenerateContent };
-    }
+vi.mock("@google/genai", () => {
+  class MockGoogleGenAI {
+    models = { generateContent: mockGenerateContent };
+    chats = { create: vi.fn() };
   }
   return {
-    GoogleGenerativeAI: MockGoogleGenerativeAI,
-    FunctionCallingMode: { ANY: "ANY", AUTO: "AUTO", NONE: "NONE", MODE_UNSPECIFIED: "MODE_UNSPECIFIED" },
-    SchemaType: {
-      STRING: "string",
-      NUMBER: "number",
-      INTEGER: "integer",
-      OBJECT: "object",
-      ARRAY: "array",
-      BOOLEAN: "boolean",
+    GoogleGenAI: MockGoogleGenAI,
+    FunctionCallingConfigMode: { ANY: "ANY", AUTO: "AUTO", NONE: "NONE", MODE_UNSPECIFIED: "MODE_UNSPECIFIED" },
+    Type: {
+      STRING: "STRING",
+      NUMBER: "NUMBER",
+      INTEGER: "INTEGER",
+      OBJECT: "OBJECT",
+      ARRAY: "ARRAY",
+      BOOLEAN: "BOOLEAN",
     },
   };
 });
@@ -53,10 +52,8 @@ const TODAY = new Date("2026-06-27T00:00:00.000Z");
 
 function makeParseResponse(transactions: RawTransaction[]) {
   return {
-    response: {
-      functionCalls: () => [{ name: "parse_transactions", args: { transactions } }],
-      text: () => "",
-    },
+    functionCalls: [{ name: "parse_transactions", args: { transactions } }],
+    text: "",
   };
 }
 

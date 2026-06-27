@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { queryToolDecls } from "./tools";
 import {
   getCustomerDebt,
@@ -11,7 +11,7 @@ import {
   getDayBook,
 } from "@/lib/queries";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const SYSTEM =
   "You are a helpful assistant for Neema Tyres shop. Answer questions about sales, " +
@@ -72,37 +72,35 @@ async function runTool(
 }
 
 export async function runQueryAgent(userMessage: string): Promise<string> {
-  const model = genAI.getGenerativeModel(
-    {
-      model: "gemini-1.5-flash",
+  const chat = ai.chats.create({
+    model: "gemini-1.5-flash",
+    config: {
       systemInstruction: SYSTEM,
       tools: [{ functionDeclarations: queryToolDecls }],
     },
-    { apiVersion: "v1" }
-  );
+  });
 
-  const chat = model.startChat();
-  let result = await chat.sendMessage(userMessage);
+  let response = await chat.sendMessage({ message: userMessage });
 
   for (let i = 0; i < 10; i++) {
-    const calls = result.response.functionCalls();
+    const calls = response.functionCalls;
     if (!calls || calls.length === 0) {
-      return result.response.text();
+      return response.text ?? "No response.";
     }
 
     const toolParts = await Promise.all(
       calls.map(async (call) => {
-        const output = await runTool(call.name, call.args as Record<string, unknown>);
+        const output = await runTool(call.name!, call.args as Record<string, unknown>);
         return {
           functionResponse: {
-            name: call.name,
+            name: call.name!,
             response: { result: output },
           },
         };
       })
     );
 
-    result = await chat.sendMessage(toolParts);
+    response = await chat.sendMessage({ message: toolParts });
   }
 
   return "Unable to complete the query. Please try rephrasing your question.";
