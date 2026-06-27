@@ -72,11 +72,14 @@ async function runTool(
 }
 
 export async function runQueryAgent(userMessage: string): Promise<string> {
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: SYSTEM,
-    tools: [{ functionDeclarations: queryToolDecls }],
-  });
+  const model = genAI.getGenerativeModel(
+    {
+      model: "gemini-1.5-flash",
+      systemInstruction: SYSTEM,
+      tools: [{ functionDeclarations: queryToolDecls }],
+    },
+    { apiVersion: "v1" }
+  );
 
   const chat = model.startChat();
   let result = await chat.sendMessage(userMessage);

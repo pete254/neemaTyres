@@ -10,13 +10,14 @@ export async function parseEntryMessage(
 ): Promise<{ transactions: RawTransaction[] }> {
   const todayStr = today.toISOString().slice(0, 10);
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    tools: [{ functionDeclarations: [parseToolDecl] }],
-    toolConfig: {
-      functionCallingConfig: { mode: FunctionCallingMode.ANY },
-    },
-    systemInstruction: `You are a tyre shop transaction parser. Today is ${todayStr}.
+  const model = genAI.getGenerativeModel(
+    {
+      model: "gemini-1.5-flash",
+      tools: [{ functionDeclarations: [parseToolDecl] }],
+      toolConfig: {
+        functionCallingConfig: { mode: FunctionCallingMode.ANY },
+      },
+      systemInstruction: `You are a tyre shop transaction parser. Today is ${todayStr}.
 
 Parse the user's message using the parse_transactions function. Strict rules:
 - Payment vocabulary: "mum" / "M-Pesa" → MPESA channel; "cash" → CASH; "debt" / "deni" / "on credit" → DEBT
@@ -26,7 +27,9 @@ Parse the user's message using the parse_transactions function. Strict rules:
 - Position (AP / DIFF / STEERING / NONE): include ONLY when explicitly stated. Never infer from context.
 - Prices and costs: include ONLY when explicitly stated. Never guess.
 - One message may encode multiple transactions on different dates — split into separate entries.`,
-  });
+    },
+    { apiVersion: "v1" }
+  );
 
   const result = await model.generateContent(message);
   const calls = result.response.functionCalls();
