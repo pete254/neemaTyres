@@ -11,7 +11,7 @@ export async function parseEntryMessage(
   const todayStr = today.toISOString().slice(0, 10);
 
   const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.0-flash-lite",
     contents: message,
     config: {
       systemInstruction: `You are a tyre shop transaction parser. Today is ${todayStr}.
