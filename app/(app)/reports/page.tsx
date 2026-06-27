@@ -1,4 +1,4 @@
-import { getDailyReport, getReportSummary } from "@/lib/queries";
+import { getSalesBetween, getReportSummary } from "@/lib/queries";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number | string) =>
@@ -30,8 +30,8 @@ export default async function ReportsPage({ searchParams }: PageProps) {
   const from = new Date(fromStr + "T00:00:00Z");
   const to = new Date(toStr + "T23:59:59Z");
 
-  const [daily, summary] = await Promise.all([
-    getDailyReport(from, to),
+  const [report, summary] = await Promise.all([
+    getSalesBetween(from, to),
     getReportSummary(from, to),
   ]);
 
@@ -72,26 +72,38 @@ export default async function ReportsPage({ searchParams }: PageProps) {
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Total Revenue</p>
           <p className="text-xl font-bold text-[#EAB308]">
-            {fmt(summary.totalRevenue)}
+            {fmt(report.totalRevenue)}
           </p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 mb-1">Sales</p>
-          <p className="text-xl font-bold text-white">
-            {summary.salesCount}
-          </p>
+          <p className="text-xs text-zinc-500 mb-1">Cash</p>
+          <p className="text-xl font-bold text-white">{fmt(report.totalCash)}</p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 mb-1">Purchases</p>
-          <p className="text-xl font-bold text-white">
-            {summary.purchasesCount}
-          </p>
+          <p className="text-xs text-zinc-500 mb-1">M-Pesa</p>
+          <p className="text-xl font-bold text-white">{fmt(report.totalMpesa)}</p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Stock Value (WAC)</p>
           <p className="text-xl font-bold text-zinc-200">
             {fmt(summary.stockValueAtWac)}
           </p>
+        </div>
+      </div>
+
+      {/* Channel split */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Debt Issued</p>
+          <p className="text-lg font-semibold text-zinc-300">{fmt(report.totalDebt)}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Total Sales</p>
+          <p className="text-lg font-semibold text-zinc-300">{summary.salesCount}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Purchases</p>
+          <p className="text-lg font-semibold text-zinc-300">{summary.purchasesCount}</p>
         </div>
       </div>
 
@@ -112,14 +124,14 @@ export default async function ReportsPage({ searchParams }: PageProps) {
             </tr>
           </thead>
           <tbody>
-            {daily.map((d) => (
+            {report.days.map((d) => (
               <tr
                 key={d.date}
                 className="border-b border-[#1C1C1C] hover:bg-[#111]"
               >
                 <td className="py-3 pr-4 text-zinc-300">{d.date}</td>
                 <td className="py-3 pr-4 text-right text-zinc-400">
-                  {d.sales.length}
+                  {d.salesCount}
                 </td>
                 <td className="py-3 pr-4 text-right text-zinc-300">
                   {fmt(d.cash)}
@@ -137,7 +149,7 @@ export default async function ReportsPage({ searchParams }: PageProps) {
             ))}
           </tbody>
         </table>
-        {daily.length === 0 && (
+        {report.days.length === 0 && (
           <p className="text-center text-zinc-500 py-12">
             No sales in this period.
           </p>
