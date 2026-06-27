@@ -1,13 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ── Mock Anthropic SDK ────────────────────────────────────────────────────────
-const mockCreate = vi.hoisted(() => vi.fn());
+// ── Mock Google Generative AI SDK ─────────────────────────────────────────────
+const mockGenerateContent = vi.hoisted(() => vi.fn());
 
-vi.mock("@anthropic-ai/sdk", () => {
-  class MockAnthropic {
-    messages = { create: mockCreate };
+vi.mock("@google/generative-ai", () => {
+  class MockGoogleGenerativeAI {
+    getGenerativeModel() {
+      return { generateContent: mockGenerateContent };
+    }
   }
-  return { default: MockAnthropic };
+  return {
+    GoogleGenerativeAI: MockGoogleGenerativeAI,
+    FunctionCallingMode: { ANY: "ANY", AUTO: "AUTO", NONE: "NONE", MODE_UNSPECIFIED: "MODE_UNSPECIFIED" },
+    SchemaType: {
+      STRING: "string",
+      NUMBER: "number",
+      INTEGER: "integer",
+      OBJECT: "object",
+      ARRAY: "array",
+      BOOLEAN: "boolean",
+    },
+  };
 });
 
 // ── Mock Prisma ───────────────────────────────────────────────────────────────
@@ -40,15 +53,10 @@ const TODAY = new Date("2026-06-27T00:00:00.000Z");
 
 function makeParseResponse(transactions: RawTransaction[]) {
   return {
-    content: [
-      {
-        type: "tool_use",
-        id: "tu_1",
-        name: "parse_transactions",
-        input: { transactions },
-      },
-    ],
-    stop_reason: "tool_use",
+    response: {
+      functionCalls: () => [{ name: "parse_transactions", args: { transactions } }],
+      text: () => "",
+    },
   };
 }
 
@@ -108,7 +116,7 @@ describe("Phase 7 AI — parser tests", () => {
       ],
     };
 
-    mockCreate.mockResolvedValue(makeParseResponse([rawTx]));
+    mockGenerateContent.mockResolvedValue(makeParseResponse([rawTx]));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue(mockSizeAlias11R as never);
     vi.mocked(prisma.productVariant.findMany)
       .mockResolvedValueOnce([mockRoadshineAP] as never)
@@ -175,7 +183,7 @@ describe("Phase 7 AI — parser tests", () => {
       },
     ];
 
-    mockCreate.mockResolvedValue(makeParseResponse(rawTxs));
+    mockGenerateContent.mockResolvedValue(makeParseResponse(rawTxs));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue(mockSizeAlias11R as never);
     vi.mocked(prisma.productVariant.findMany)
       .mockResolvedValueOnce([mockRoadshineAP] as never)
@@ -225,7 +233,7 @@ describe("Phase 7 AI — parser tests", () => {
       ],
     };
 
-    mockCreate.mockResolvedValue(makeParseResponse([rawTx]));
+    mockGenerateContent.mockResolvedValue(makeParseResponse([rawTx]));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue(mockSizeAlias11R as never);
     vi.mocked(prisma.productVariant.findMany).mockResolvedValue([mockRoadshineAP] as never);
     vi.mocked(prisma.customer.findMany).mockResolvedValue([{ id: "cust-g", name: "Githinji" }] as never);
@@ -254,7 +262,7 @@ describe("Phase 7 AI — parser tests", () => {
       ],
     };
 
-    mockCreate.mockResolvedValue(makeParseResponse([rawTx]));
+    mockGenerateContent.mockResolvedValue(makeParseResponse([rawTx]));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue(mockSizeAlias11R as never);
     vi.mocked(prisma.productVariant.findMany).mockResolvedValue([mockRoadshineAP] as never);
 
@@ -291,7 +299,7 @@ describe("Phase 7 AI — parser tests", () => {
       payments: [{ channel: "MPESA", isBalance: true }],
     };
 
-    mockCreate.mockResolvedValue(makeParseResponse([rawTx]));
+    mockGenerateContent.mockResolvedValue(makeParseResponse([rawTx]));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue({
       id: "sa2",
       alias: "19.5",
@@ -333,7 +341,7 @@ describe("Phase 7 AI — parser tests", () => {
       payments: [{ channel: "CASH", amount: 23000 }],
     };
 
-    mockCreate.mockResolvedValue(makeParseResponse([rawTx]));
+    mockGenerateContent.mockResolvedValue(makeParseResponse([rawTx]));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue(mockSizeAlias11R as never);
     // DB returns both AP and DIFF — ambiguous
     vi.mocked(prisma.productVariant.findMany).mockResolvedValue([
@@ -370,7 +378,7 @@ describe("Phase 7 AI — parser tests", () => {
       payments: [{ channel: "CASH", amount: 23000 }],
     };
 
-    mockCreate.mockResolvedValue(makeParseResponse([rawTx]));
+    mockGenerateContent.mockResolvedValue(makeParseResponse([rawTx]));
     vi.mocked(prisma.sizeAlias.findFirst).mockResolvedValue(mockSizeAlias11R as never);
     vi.mocked(prisma.productVariant.findMany).mockResolvedValue([mockRoadshineAP] as never);
     vi.mocked(prisma.customer.findMany).mockResolvedValue([{ id: "cust-k", name: "Kimani" }] as never);
