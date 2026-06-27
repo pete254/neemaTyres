@@ -16,6 +16,7 @@ const navLinks = [
   { href: "/suppliers", label: "Suppliers" },
   { href: "/reports", label: "Reports" },
   { href: "/exceptions", label: "Exceptions" },
+  { href: "/ai", label: "AI Assistant" },
 ];
 
 interface SidebarProps {
