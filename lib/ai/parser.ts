@@ -2,7 +2,7 @@ import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
 import { parseToolDecl } from "./tools";
 import type { RawTransaction } from "./types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY!, apiVersion: "v1" });
 
 export async function parseEntryMessage(
   message: string,
@@ -11,7 +11,7 @@ export async function parseEntryMessage(
   const todayStr = today.toISOString().slice(0, 10);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash-lite",
+    model: "gemini-1.5-flash",
     contents: message,
     config: {
       systemInstruction: `You are a tyre shop transaction parser. Today is ${todayStr}.

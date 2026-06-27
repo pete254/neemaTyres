@@ -11,7 +11,7 @@ import {
   getDayBook,
 } from "@/lib/queries";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY!, apiVersion: "v1" });
 
 const SYSTEM =
   "You are a helpful assistant for Neema Tyres shop. Answer questions about sales, " +
@@ -73,7 +73,7 @@ async function runTool(
 
 export async function runQueryAgent(userMessage: string): Promise<string> {
   const chat = ai.chats.create({
-    model: "gemini-2.0-flash-lite",
+    model: "gemini-1.5-flash",
     config: {
       systemInstruction: SYSTEM,
       tools: [{ functionDeclarations: queryToolDecls }],
