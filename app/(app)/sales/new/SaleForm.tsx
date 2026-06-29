@@ -247,66 +247,104 @@ export default function SaleForm({
       {/* Payments */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-zinc-300">Payments</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-300">Payment</h3>
+            <p className="text-xs text-zinc-500">
+              Split across multiple methods if needed
+            </p>
+          </div>
           <button
             type="button"
             onClick={addPayment}
             className="text-xs text-[#EAB308] hover:underline"
           >
-            + Add payment
+            + Add method
           </button>
         </div>
         <div className="space-y-2">
-          {payments.map((pmt, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2 items-center">
-              <div className="col-span-4">
-                <select
-                  value={pmt.channel}
-                  onChange={(e) =>
-                    updatePayment(
-                      i,
-                      "channel",
-                      e.target.value as SalePayment["channel"]
-                    )
-                  }
-                  className={inputClass + " w-full"}
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="MPESA">M-Pesa</option>
-                  <option value="DEBT">Debt</option>
-                </select>
-              </div>
-              <div className="col-span-6">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={pmt.amount}
-                  onChange={(e) => updatePayment(i, "amount", e.target.value)}
-                  placeholder="Amount"
-                  required
-                  className={inputClass + " w-full"}
-                />
-              </div>
-              <div className="col-span-2 text-center">
-                {payments.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePayment(i)}
-                    className="text-zinc-600 hover:text-red-400 text-xs"
+          {payments.map((pmt, i) => {
+            const allocatedBefore = payments
+              .slice(0, i)
+              .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+            const remaining = lineTotal - allocatedBefore;
+            const showHint = remaining > 0.01 && !pmt.amount && lineTotal > 0;
+
+            return (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-4">
+                  <select
+                    value={pmt.channel}
+                    onChange={(e) =>
+                      updatePayment(
+                        i,
+                        "channel",
+                        e.target.value as SalePayment["channel"]
+                      )
+                    }
+                    className={inputClass + " w-full"}
                   >
-                    ✕
-                  </button>
-                )}
+                    <option value="CASH">Cash</option>
+                    <option value="MPESA">M-Pesa</option>
+                    <option value="DEBT">Debt</option>
+                  </select>
+                </div>
+                <div className="col-span-6 relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={pmt.amount}
+                    onChange={(e) =>
+                      updatePayment(i, "amount", e.target.value)
+                    }
+                    placeholder={
+                      showHint ? `${remaining.toFixed(2)}` : "Amount"
+                    }
+                    required
+                    className={inputClass + " w-full pr-20"}
+                  />
+                  {showHint && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updatePayment(i, "amount", remaining.toFixed(2))
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-[#EAB308] transition-colors whitespace-nowrap"
+                      title="Fill remaining"
+                    >
+                      Fill {fmt(remaining)}
+                    </button>
+                  )}
+                </div>
+                <div className="col-span-2 text-center">
+                  {payments.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePayment(i)}
+                      className="text-zinc-600 hover:text-red-400 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <div className="mt-2 text-right text-sm">
-          <span className={balanced ? "text-green-400" : "text-red-400"}>
-            {balanced
-              ? "Balanced"
-              : `Difference: ${fmt(Math.abs(lineTotal - paymentTotal))}`}
+
+        {/* Balance status */}
+        <div className="mt-3 flex items-center justify-between text-sm">
+          {!balanced && lineTotal > 0 && (
+            <span className="text-zinc-500 text-xs">
+              {paymentTotal < lineTotal
+                ? `Unallocated: ${fmt(lineTotal - paymentTotal)}`
+                : `Over by: ${fmt(paymentTotal - lineTotal)}`}
+            </span>
+          )}
+          <span
+            className={`ml-auto font-medium ${balanced ? "text-green-400" : "text-orange-400"}`}
+          >
+            {fmt(paymentTotal)} / {fmt(lineTotal)}
           </span>
         </div>
       </div>
