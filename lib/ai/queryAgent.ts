@@ -73,7 +73,7 @@ async function runTool(
 
 export async function runQueryAgent(userMessage: string): Promise<string> {
   const chat = ai.chats.create({
-    model: "gemini-1.5-flash-002",
+    model: "gemini-2.5-flash",
     config: {
       systemInstruction: SYSTEM,
       tools: [{ functionDeclarations: queryToolDecls }],
