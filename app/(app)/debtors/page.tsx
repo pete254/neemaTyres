@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getDebtors } from "@/lib/queries";
 import Decimal from "decimal.js";
 
@@ -20,7 +21,8 @@ export default async function DebtorsPage() {
             <tr className="border-b border-[#2A2A2A] text-zinc-400 text-left">
               <th className="pb-3 pr-4">Customer</th>
               <th className="pb-3 pr-4 text-right">Outstanding</th>
-              <th className="pb-3 text-right">Oldest Unpaid</th>
+              <th className="pb-3 pr-4 text-right">Oldest Unpaid</th>
+              <th className="pb-3 text-right"></th>
             </tr>
           </thead>
           <tbody>
@@ -29,8 +31,13 @@ export default async function DebtorsPage() {
                 key={d.id}
                 className="border-b border-[#1C1C1C] hover:bg-[#111]"
               >
-                <td className="py-3 pr-4 text-white font-medium">
-                  {d.name}
+                <td className="py-3 pr-4 font-medium">
+                  <Link
+                    href={`/debtors/${d.id}`}
+                    className="text-white hover:text-[#EAB308] transition-colors"
+                  >
+                    {d.name}
+                  </Link>
                   {d.phone && (
                     <span className="ml-2 text-xs text-zinc-500">
                       {d.phone}
@@ -40,10 +47,18 @@ export default async function DebtorsPage() {
                 <td className="py-3 pr-4 text-right font-semibold text-red-400">
                   {fmt(d.outstanding)}
                 </td>
-                <td className="py-3 text-right text-zinc-400">
+                <td className="py-3 pr-4 text-right text-zinc-400">
                   {d.oldestUnpaid
                     ? new Date(d.oldestUnpaid).toLocaleDateString("en-KE")
                     : "-"}
+                </td>
+                <td className="py-3 text-right">
+                  <Link
+                    href={`/debtors/${d.id}`}
+                    className="text-xs text-zinc-500 hover:text-[#EAB308] transition-colors"
+                  >
+                    View →
+                  </Link>
                 </td>
               </tr>
             ))}

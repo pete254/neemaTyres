@@ -1,4 +1,5 @@
 import { getSalesBetween, getReportSummary } from "@/lib/queries";
+import { PrintButton } from "@/components/PrintButton";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number | string) =>
@@ -37,10 +38,13 @@ export default async function ReportsPage({ searchParams }: PageProps) {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Reports</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-white">Reports</h2>
+        <PrintButton className="bg-[#1C1C1C] border border-[#2A2A2A] text-zinc-300 hover:border-[#EAB308] hover:text-[#EAB308] rounded px-4 py-2 text-sm transition-colors print:hidden" />
+      </div>
 
-      {/* Date range filter */}
-      <form className="mb-6 flex gap-3 items-end">
+      {/* Date range filter — hidden on print */}
+      <form className="mb-6 flex gap-3 items-end print:hidden">
         <div>
           <label className="block text-xs text-zinc-400 mb-1">From</label>
           <input
@@ -66,6 +70,13 @@ export default async function ReportsPage({ searchParams }: PageProps) {
           Apply
         </button>
       </form>
+
+      {/* Print header — only visible when printing */}
+      <div className="hidden print:block mb-4">
+        <p className="text-sm text-zinc-400">
+          Period: {fromStr} to {toStr}
+        </p>
+      </div>
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

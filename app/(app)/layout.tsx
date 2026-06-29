@@ -12,7 +12,9 @@ export default async function AppLayout({
 
   return (
     <div className="flex h-screen bg-black">
-      <Sidebar userName={session.user.name ?? "User"} />
+      <div className="print:hidden flex-shrink-0">
+        <Sidebar userName={session.user.name ?? "User"} />
+      </div>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );

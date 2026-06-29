@@ -9,20 +9,33 @@ const fmt = (n: number | Decimal) =>
   }).format(Number(n));
 
 async function getDashboardData() {
-  const [inventory, customers, exceptions] = await Promise.all([
-    prisma.productVariant.findMany({
-      select: { qtyOnHand: true, wacCost: true },
-    }),
-    prisma.customer.findMany({
-      include: {
-        sales: {
-          include: { payments: { where: { channel: "DEBT" } } },
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStart = new Date(todayStr + "T00:00:00Z");
+  const todayEnd = new Date(todayStr + "T23:59:59Z");
+
+  const [inventory, customers, exceptions, todaySaleLines, todayPurchaseAgg] =
+    await Promise.all([
+      prisma.productVariant.findMany({
+        select: { qtyOnHand: true, wacCost: true },
+      }),
+      prisma.customer.findMany({
+        include: {
+          sales: {
+            include: { payments: { where: { channel: "DEBT" } } },
+          },
+          debtCollections: true,
         },
-        debtCollections: true,
-      },
-    }),
-    prisma.exceptionFlag.count({ where: { resolved: false } }),
-  ]);
+      }),
+      prisma.exceptionFlag.count({ where: { resolved: false } }),
+      prisma.saleLine.findMany({
+        where: { sale: { date: { gte: todayStart, lte: todayEnd } } },
+        select: { qty: true, unitCostAtSale: true, lineTotal: true },
+      }),
+      prisma.purchaseLine.aggregate({
+        where: { purchase: { date: { gte: todayStart, lte: todayEnd } } },
+        _sum: { lineTotal: true },
+      }),
+    ]);
 
   const stockValue = inventory.reduce(
     (sum, v) =>
@@ -49,35 +62,47 @@ async function getDashboardData() {
     new Decimal(0)
   );
 
-  return { stockValue, activeDebtors, totalOwed, exceptions };
+  const todaySales = todaySaleLines.reduce(
+    (sum, l) => sum.plus(l.lineTotal.toString()),
+    new Decimal(0)
+  );
+  const todayCOGS = todaySaleLines.reduce(
+    (sum, l) =>
+      sum.plus(new Decimal(l.unitCostAtSale.toString()).mul(l.qty)),
+    new Decimal(0)
+  );
+  const todayProfit = todaySales.minus(todayCOGS);
+  const todayPurchases = new Decimal(
+    (todayPurchaseAgg._sum.lineTotal ?? 0).toString()
+  );
+
+  return {
+    stockValue,
+    activeDebtors,
+    totalOwed,
+    exceptions,
+    todaySales,
+    todayPurchases,
+    todayProfit,
+    todayStr,
+  };
 }
 
 export default async function DashboardPage() {
-  const { stockValue, activeDebtors, totalOwed, exceptions } =
-    await getDashboardData();
+  const {
+    stockValue,
+    activeDebtors,
+    totalOwed,
+    exceptions,
+    todaySales,
+    todayPurchases,
+    todayProfit,
+    todayStr,
+  } = await getDashboardData();
 
-  const stats = [
-    {
-      label: "Stock Value (WAC)",
-      value: fmt(stockValue),
-      color: "text-[#EAB308]",
-    },
-    {
-      label: "Active Debtors",
-      value: String(activeDebtors),
-      color: "text-white",
-    },
-    {
-      label: "Total Owed",
-      value: fmt(totalOwed),
-      color: "text-red-400",
-    },
-    {
-      label: "Unresolved Flags",
-      value: String(exceptions),
-      color: exceptions > 0 ? "text-orange-400" : "text-green-400",
-    },
-  ];
+  const cardBase =
+    "bg-[#111] border border-[#2A2A2A] rounded-lg p-4 transition-colors";
+  const cardLink = cardBase + " hover:border-[#EAB308] cursor-pointer";
 
   const quickLinks = [
     { href: "/sales/new", label: "Record Sale" },
@@ -92,20 +117,79 @@ export default async function DashboardPage() {
     <div className="p-6">
       <h2 className="text-2xl font-bold text-white mb-6">Dashboard</h2>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4"
+      {/* Today */}
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+        Today &mdash; {todayStr}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <Link
+          href={`/sales?from=${todayStr}&to=${todayStr}`}
+          className={cardLink}
+        >
+          <p className="text-xs text-zinc-500 mb-1">Total Sales</p>
+          <p className="text-xl font-bold text-[#EAB308]">{fmt(todaySales)}</p>
+          <p className="text-xs text-zinc-600 mt-1">View transactions →</p>
+        </Link>
+        <Link
+          href={`/purchases?from=${todayStr}&to=${todayStr}`}
+          className={cardLink}
+        >
+          <p className="text-xs text-zinc-500 mb-1">Purchases</p>
+          <p className="text-xl font-bold text-blue-400">
+            {fmt(todayPurchases)}
+          </p>
+          <p className="text-xs text-zinc-600 mt-1">View transactions →</p>
+        </Link>
+        <div className={cardBase}>
+          <p className="text-xs text-zinc-500 mb-1">Gross Profit</p>
+          <p
+            className={`text-xl font-bold ${
+              todayProfit.gte(0) ? "text-green-400" : "text-red-400"
+            }`}
           >
-            <p className="text-xs text-zinc-500 mb-1">{s.label}</p>
-            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
+            {fmt(todayProfit)}
+          </p>
+        </div>
       </div>
 
-      {/* Quick Links */}
+      {/* Overview */}
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+        Overview
+      </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className={cardBase}>
+          <p className="text-xs text-zinc-500 mb-1">Stock Value (WAC)</p>
+          <p className="text-xl font-bold text-[#EAB308]">{fmt(stockValue)}</p>
+        </div>
+        <Link href="/debtors" className={cardLink}>
+          <p className="text-xs text-zinc-500 mb-1">Active Debtors</p>
+          <p className="text-xl font-bold text-white">{activeDebtors}</p>
+          <p className="text-xs text-zinc-600 mt-1">View list →</p>
+        </Link>
+        <Link href="/debtors" className={cardLink}>
+          <p className="text-xs text-zinc-500 mb-1">Total Owed</p>
+          <p className="text-xl font-bold text-red-400">{fmt(totalOwed)}</p>
+          <p className="text-xs text-zinc-600 mt-1">View list →</p>
+        </Link>
+        <Link
+          href="/exceptions"
+          className={
+            cardBase +
+            ` hover:border-${exceptions > 0 ? "orange" : "zinc"}-400 cursor-pointer`
+          }
+        >
+          <p className="text-xs text-zinc-500 mb-1">Unresolved Flags</p>
+          <p
+            className={`text-xl font-bold ${
+              exceptions > 0 ? "text-orange-400" : "text-green-400"
+            }`}
+          >
+            {exceptions}
+          </p>
+        </Link>
+      </div>
+
+      {/* Quick Actions */}
       <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
         Quick Actions
       </h3>

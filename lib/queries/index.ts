@@ -30,3 +30,10 @@ export type { AgedDebtorsResult, AgedDebtor } from "./aged";
 
 export { getDayBook } from "./dayBook";
 export type { DayBookResult } from "./dayBook";
+
+export { getPurchasesBetween } from "./purchasesBetween";
+export type {
+  PurchasesBetweenResult,
+  PurchaseDay,
+  PurchaseLineItem,
+} from "./purchasesBetween";
