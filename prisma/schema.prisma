@@ -64,6 +64,7 @@ model Brand {
 model ProductVariant {
   id                 String   @id @default(cuid())
   sizeCanonical      String
+  sizeBucket         String
   brandId            String
   brand              Brand    @relation(fields: [brandId], references: [id])
   position           Position
@@ -87,6 +88,7 @@ model ProductVariant {
   // enforce the "one NULL subLabel per size+brand+position" rule in the engine.
   @@unique([sizeCanonical, brandId, position, subLabel])
   @@index([sizeCanonical])
+  @@index([sizeBucket])
   @@index([brandId])
 }
 
