@@ -127,6 +127,37 @@ export const queryToolDecls: FunctionDeclaration[] = [
       },
     },
   },
+  {
+    name: "get_all_debtors",
+    description:
+      "List all customers with outstanding debt, sorted by outstanding balance (highest first). Use this to answer questions like 'who owes the most?' or 'show me all debtors' or 'who is my highest debtor?'.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {},
+    },
+  },
+  {
+    name: "get_purchases_between",
+    description:
+      "Get all purchases (stock received from suppliers) between two dates, with line-by-line detail including supplier, variant, qty, and cost.",
+    parameters: {
+      type: Type.OBJECT,
+      required: ["from", "to"],
+      properties: {
+        from: { type: Type.STRING, description: "Start date ISO 8601 e.g. 2025-01-01" },
+        to: { type: Type.STRING, description: "End date ISO 8601 e.g. 2025-01-31" },
+      },
+    },
+  },
+  {
+    name: "list_customers",
+    description:
+      "List all customers in the system (name, phone, id). Use when the user asks who is a customer or wants to find a customer.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {},
+    },
+  },
 ];
 
 export const parseToolDecl: FunctionDeclaration = {

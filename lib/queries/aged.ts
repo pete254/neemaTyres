@@ -25,6 +25,7 @@ export interface AgedDebtorsResult {
 export async function getDebtorsAged(asOf: Date): Promise<AgedDebtorsResult> {
   const customers = await prisma.customer.findMany({
     include: {
+      openingBalanceEntries: { where: { kind: "DEBTOR" } },
       sales: {
         where: {
           date: { lte: asOf },
@@ -58,6 +59,24 @@ export async function getDebtorsAged(asOf: Date): Promise<AgedDebtorsResult> {
     let current = new Decimal(0);
     let days31to60 = new Decimal(0);
     let over60 = new Decimal(0);
+
+    // Opening balances age from their asOfDate (oldest first)
+    for (const entry of customer.openingBalanceEntries) {
+      const debtAmount = new Decimal(entry.amount?.toString() ?? "0");
+      const applied = Decimal.min(debtAmount, remainingCollections);
+      remainingCollections = remainingCollections.minus(applied);
+      const balance = debtAmount.minus(applied);
+      if (balance.lte(0)) continue;
+
+      const date = entry.asOfDate ?? entry.createdAt;
+      const daysOld = Math.floor(
+        (asOf.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      outstanding = outstanding.plus(balance);
+      if (daysOld <= 30) current = current.plus(balance);
+      else if (daysOld <= 60) days31to60 = days31to60.plus(balance);
+      else over60 = over60.plus(balance);
+    }
 
     for (const sale of customer.sales) {
       const debtAmount = sale.payments.reduce(

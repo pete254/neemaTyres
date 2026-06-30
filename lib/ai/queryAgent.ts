@@ -9,16 +9,23 @@ import {
   getTopSellingVariants,
   getDebtorsAged,
   getDayBook,
+  getDebtors,
+  getPurchasesBetween,
+  getCustomers,
 } from "@/lib/queries";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const SYSTEM =
   "You are a helpful assistant for Neema Tyres shop. Answer questions about sales, " +
-  "stock, debt, and suppliers using the available tools. Be concise and clear. " +
+  "stock, debt, suppliers, customers, and purchases using the available tools. Be concise and clear. " +
   "Format monetary amounts in KES with comma separators (e.g. KES 45,000). " +
   "When asked about a date range, pick sensible defaults if the user is vague " +
-  "(e.g. 'this month' = first to today). Never write SQL or raw code.";
+  "(e.g. 'this month' = first to today). " +
+  "For questions like 'who owes the most?' or 'who is my biggest debtor?' use get_all_debtors. " +
+  "For purchase history use get_purchases_between. " +
+  "To find customers or look up a customer name use list_customers. " +
+  "Never write SQL or raw code.";
 
 function serialize(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
@@ -66,6 +73,29 @@ async function runTool(
       return serialize(await getDebtorsAged(new Date(args.as_of as string)));
     case "get_day_book":
       return serialize(await getDayBook(new Date(args.date as string)));
+    case "get_all_debtors": {
+      const debtors = await getDebtors();
+      const sorted = [...debtors].sort((a, b) =>
+        b.outstanding.comparedTo(a.outstanding)
+      );
+      return serialize(
+        sorted.map((d) => ({
+          name: d.name,
+          phone: d.phone,
+          outstanding: d.outstanding,
+          oldestUnpaid: d.oldestUnpaid,
+        }))
+      );
+    }
+    case "get_purchases_between":
+      return serialize(
+        await getPurchasesBetween(
+          new Date(args.from as string),
+          new Date(args.to as string)
+        )
+      );
+    case "list_customers":
+      return serialize(await getCustomers());
     default:
       return { error: `Unknown tool: ${name}` };
   }
