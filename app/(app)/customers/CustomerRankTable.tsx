@@ -2,22 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Decimal from "decimal.js";
 
 interface CustomerRow {
   id: string;
   name: string;
   phone: string | null;
-  totalSpent: Decimal;
+  totalSpent: number;
   visitCount: number;
-  outstandingDebt: Decimal;
-  lastVisit: Date | null;
+  outstandingDebt: number;
+  lastVisit: string | null; // ISO string
 }
 
-const fmt = (n: Decimal | number) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(
-    Number(n)
-  );
+const fmt = (n: number) =>
+  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(n);
 
 const SortLink = ({
   field,
@@ -63,8 +60,7 @@ export default function CustomerRankTable({
 
   return (
     <div>
-      {/* Search + sort row */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <input
           type="text"
           defaultValue={currentQ}
@@ -95,10 +91,7 @@ export default function CustomerRankTable({
           </thead>
           <tbody>
             {customers.map((c, idx) => (
-              <tr
-                key={c.id}
-                className="border-b border-[#1C1C1C] hover:bg-[#111]"
-              >
+              <tr key={c.id} className="border-b border-[#1C1C1C] hover:bg-[#111]">
                 <td className="py-3 pr-4 text-zinc-600 text-xs">{idx + 1}</td>
                 <td className="py-3 pr-4">
                   <Link
@@ -111,17 +104,13 @@ export default function CustomerRankTable({
                     <span className="ml-2 text-xs text-zinc-500">{c.phone}</span>
                   )}
                 </td>
-                <td className="py-3 pr-4 text-right text-[#EAB308] font-semibold">
-                  {fmt(c.totalSpent)}
+                <td className="py-3 pr-4 text-right font-semibold text-[#EAB308]">
+                  {c.totalSpent > 0 ? fmt(c.totalSpent) : <span className="text-zinc-600">—</span>}
                 </td>
-                <td className="py-3 pr-4 text-right text-zinc-300">
-                  {c.visitCount}
-                </td>
+                <td className="py-3 pr-4 text-right text-zinc-300">{c.visitCount}</td>
                 <td className="py-3 pr-4 text-right">
-                  {c.outstandingDebt.gt(0) ? (
-                    <span className="text-red-400 font-semibold">
-                      {fmt(c.outstandingDebt)}
-                    </span>
+                  {c.outstandingDebt > 0 ? (
+                    <span className="text-red-400 font-semibold">{fmt(c.outstandingDebt)}</span>
                   ) : (
                     <span className="text-green-500 text-xs">Clear</span>
                   )}
