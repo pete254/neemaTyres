@@ -10,6 +10,12 @@ export async function getInventory(filters?: {
         ? {
             OR: [
               {
+                sizeBucket: {
+                  contains: filters.search,
+                  mode: "insensitive",
+                },
+              },
+              {
                 sizeCanonical: {
                   contains: filters.search,
                   mode: "insensitive",
@@ -29,6 +35,6 @@ export async function getInventory(filters?: {
         : {}),
     },
     include: { brand: true, recordedBy: { select: { name: true } } },
-    orderBy: [{ sizeCanonical: "asc" }, { brand: { name: "asc" } }],
+    orderBy: [{ sizeCanonical: "asc" }, { brand: { name: "asc" } }], // post-sorted in caller
   });
 }

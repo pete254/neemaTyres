@@ -5,6 +5,7 @@ import { createSale } from "@/lib/actions/sale";
 
 interface Variant {
   id: string;
+  sizeBucket: string;
   sizeCanonical: string;
   patternCode: string | null;
   wacCost: unknown; // Decimal from Prisma (serialised as string)
@@ -178,7 +179,7 @@ export default function SaleForm({
                     <option value="">Select tyre...</option>
                     {variants.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.sizeCanonical} — {v.brand.name}
+                        {v.sizeBucket} · {v.sizeCanonical} — {v.brand.name}
                         {v.patternCode ? ` (${v.patternCode})` : ""}
                       </option>
                     ))}

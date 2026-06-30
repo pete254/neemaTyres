@@ -14,6 +14,7 @@ export default async function NewPurchasePage({ searchParams }: PageProps) {
 
   const serialisedVariants = variants.map((v) => ({
     id: v.id,
+    sizeBucket: v.sizeBucket,
     sizeCanonical: v.sizeCanonical,
     patternCode: v.patternCode,
     wacCost: v.wacCost.toString(),

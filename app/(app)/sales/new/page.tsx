@@ -15,6 +15,7 @@ export default async function NewSalePage({ searchParams }: PageProps) {
   // Serialise Decimal/Date fields for the client component
   const serialisedVariants = variants.map((v) => ({
     id: v.id,
+    sizeBucket: v.sizeBucket,
     sizeCanonical: v.sizeCanonical,
     patternCode: v.patternCode,
     wacCost: v.wacCost.toString(),

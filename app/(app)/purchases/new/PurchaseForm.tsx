@@ -5,6 +5,7 @@ import { createPurchase } from "@/lib/actions/purchase";
 
 interface Variant {
   id: string;
+  sizeBucket: string;
   sizeCanonical: string;
   patternCode: string | null;
   wacCost: string;
@@ -176,7 +177,7 @@ export default function PurchaseForm({
                       <option value="">Select tyre...</option>
                       {variants.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.sizeCanonical} — {v.brand.name}
+                          {v.sizeBucket} · {v.sizeCanonical} — {v.brand.name}
                           {v.patternCode ? ` (${v.patternCode})` : ""}
                         </option>
                       ))}

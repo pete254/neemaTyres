@@ -1,6 +1,12 @@
 import { getInventory } from "@/lib/queries";
 import Decimal from "decimal.js";
 
+const BUCKET_ORDER = ["22.5", "20", "19.5", "17.5", "16", "15", "14", "13"];
+const bucketRank = (b: string) => {
+  const i = BUCKET_ORDER.indexOf(b);
+  return i === -1 ? 99 : i;
+};
+
 const fmt = (n: number | Decimal | string) =>
   new Intl.NumberFormat("en-KE", {
     style: "currency",
@@ -13,9 +19,16 @@ interface PageProps {
 
 export default async function InventoryPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const variants = await getInventory({
+  const raw = await getInventory({
     search: params.search,
     position: params.position,
+  });
+  const variants = [...raw].sort((a, b) => {
+    const bd = bucketRank(a.sizeBucket) - bucketRank(b.sizeBucket);
+    if (bd !== 0) return bd;
+    const sd = a.sizeCanonical.localeCompare(b.sizeCanonical);
+    if (sd !== 0) return sd;
+    return a.brand.name.localeCompare(b.brand.name);
   });
 
   return (
@@ -57,6 +70,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           <thead>
             <tr className="border-b border-[#2A2A2A] text-zinc-400 text-left">
               <th className="pb-3 pr-4">Size</th>
+              <th className="pb-3 pr-4">Name</th>
               <th className="pb-3 pr-4">Brand</th>
               <th className="pb-3 pr-4">Pos</th>
               <th className="pb-3 pr-4">Sub</th>
@@ -83,6 +97,13 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                   <td
                     className={`py-3 pr-4 font-mono text-xs ${
                       isNegative ? "text-red-400" : "text-white"
+                    }`}
+                  >
+                    {v.sizeBucket}
+                  </td>
+                  <td
+                    className={`py-3 pr-4 font-mono text-xs ${
+                      isNegative ? "text-red-400" : "text-zinc-300"
                     }`}
                   >
                     {v.sizeCanonical}
