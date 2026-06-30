@@ -14,6 +14,7 @@ const navLinks = [
   { href: "/supplier-payments/new", label: "Supplier Payment" },
   { href: "/returns/new", label: "Returns" },
   { href: "/inventory", label: "Inventory" },
+  { href: "/customers", label: "Customers" },
   { href: "/debtors", label: "Debtors" },
   { href: "/suppliers", label: "Suppliers" },
   { href: "/reports", label: "Reports" },

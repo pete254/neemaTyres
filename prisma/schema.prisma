@@ -103,7 +103,7 @@ model SizeAlias {
 
 model Customer {
   id           String   @id @default(cuid())
-  name         String
+  name         String   @unique
   phone        String?
   createdAt    DateTime @default(now())
   recordedById String
@@ -112,8 +112,6 @@ model Customer {
   sales                 Sale[]
   debtCollections       DebtCollection[]
   openingBalanceEntries OpeningBalanceEntry[]
-
-  @@index([name])
 }
 
 model Supplier {

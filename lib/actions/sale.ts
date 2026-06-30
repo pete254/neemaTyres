@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import Decimal from "decimal.js";
 import { postSale } from "@/lib/posting";
+import { upsertCustomerByName } from "./customer";
 
 export async function createSale(formData: FormData) {
   const session = await auth();
@@ -12,16 +13,23 @@ export async function createSale(formData: FormData) {
 
   const linesRaw = JSON.parse(formData.get("lines") as string);
   const paymentsRaw = JSON.parse(formData.get("payments") as string);
-  const customerId = formData.get("customerId") as string | null;
+  let customerId = (formData.get("customerId") as string) || null;
+  const walkinName = (formData.get("walkinName") as string)?.trim() || null;
+  const walkinPhone = (formData.get("walkinPhone") as string)?.trim() || null;
   const date = new Date(formData.get("date") as string);
 
-  const lines = linesRaw.map((l: any) => ({
+  // If a walk-in name was provided, upsert a customer record
+  if (!customerId && walkinName) {
+    customerId = await upsertCustomerByName(walkinName, walkinPhone, session.user.id);
+  }
+
+  const lines = linesRaw.map((l: { variantId: string; qty: string; unitPrice: string }) => ({
     variantId: l.variantId,
     qty: Number(l.qty),
     unitPrice: new Decimal(l.unitPrice),
   }));
-  const payments = paymentsRaw.map((p: any) => ({
-    channel: p.channel as any,
+  const payments = paymentsRaw.map((p: { channel: string; amount: string }) => ({
+    channel: p.channel as "CASH" | "MPESA" | "DEBT",
     amount: new Decimal(p.amount),
   }));
 
@@ -35,5 +43,6 @@ export async function createSale(formData: FormData) {
 
   revalidatePath("/inventory");
   revalidatePath("/debtors");
+  revalidatePath("/customers");
   redirect("/sales/new?success=1");
 }

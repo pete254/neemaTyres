@@ -54,6 +54,8 @@ export default function SaleForm({
   ]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [customerId, setCustomerId] = useState("");
+  const [walkinName, setWalkinName] = useState("");
+  const [walkinPhone, setWalkinPhone] = useState("");
   const [isPending, startTransition] = useTransition();
 
   // Distinct buckets that have at least one in-stock variant
@@ -106,6 +108,10 @@ export default function SaleForm({
     const fd = new FormData();
     fd.append("date", date);
     fd.append("customerId", customerId);
+    if (!customerId && walkinName.trim()) {
+      fd.append("walkinName", walkinName.trim());
+      fd.append("walkinPhone", walkinPhone.trim());
+    }
     fd.append(
       "lines",
       JSON.stringify(lines.map(({ bucket: _b, ...rest }) => rest))
@@ -142,7 +148,11 @@ export default function SaleForm({
           </label>
           <select
             value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
+            onChange={(e) => {
+              setCustomerId(e.target.value);
+              setWalkinName("");
+              setWalkinPhone("");
+            }}
             className={inputClass + " w-full"}
           >
             <option value="">Walk-in</option>
@@ -154,6 +164,39 @@ export default function SaleForm({
           </select>
         </div>
       </div>
+
+      {/* Walk-in name capture */}
+      {!customerId && (
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-3">
+          <p className="text-xs text-zinc-500 mb-2">
+            Record this walk-in customer? (optional — useful for tracking)
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-zinc-400 mb-1">Name</label>
+              <input
+                type="text"
+                value={walkinName}
+                onChange={(e) => setWalkinName(e.target.value)}
+                placeholder="e.g. John Kamau"
+                className={inputClass + " w-full"}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-400 mb-1">
+                Phone (optional)
+              </label>
+              <input
+                type="tel"
+                value={walkinPhone}
+                onChange={(e) => setWalkinPhone(e.target.value)}
+                placeholder="e.g. 0712 345 678"
+                className={inputClass + " w-full"}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lines */}
       <div>
