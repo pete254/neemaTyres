@@ -20,6 +20,7 @@ async function getDashboardData() {
       }),
       prisma.customer.findMany({
         include: {
+          openingBalanceEntries: { where: { kind: "DEBTOR" } },
           sales: {
             include: { payments: { where: { channel: "DEBT" } } },
           },
@@ -45,14 +46,18 @@ async function getDashboardData() {
 
   const debtorData = customers
     .map((c) => {
-      const totalDebt = c.sales
+      const openingDebt = c.openingBalanceEntries.reduce(
+        (sum, e) => sum.plus(e.amount?.toString() ?? "0"),
+        new Decimal(0)
+      );
+      const saleDebt = c.sales
         .flatMap((s) => s.payments)
         .reduce((sum, p) => sum.plus(p.amount.toString()), new Decimal(0));
       const totalCollected = c.debtCollections.reduce(
         (sum, dc) => sum.plus(dc.amount.toString()),
         new Decimal(0)
       );
-      return totalDebt.minus(totalCollected);
+      return openingDebt.plus(saleDebt).minus(totalCollected);
     })
     .filter((o) => o.gt(0));
 
