@@ -32,7 +32,10 @@ export default async function NewSalePage({ searchParams }: PageProps) {
           Sale recorded successfully.
         </div>
       )}
-      <SaleForm variants={serialisedVariants} customers={customers} />
+      <SaleForm
+        variants={serialisedVariants}
+        customers={customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
+      />
     </div>
   );
 }

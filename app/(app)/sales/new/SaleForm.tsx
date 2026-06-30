@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createSale } from "@/lib/actions/sale";
+import CustomerPicker, { type CustomerSelection } from "./CustomerPicker";
 
 interface Variant {
   id: string;
@@ -17,6 +18,7 @@ interface Variant {
 interface Customer {
   id: string;
   name: string;
+  phone?: string | null;
 }
 
 interface SaleLine {
@@ -53,9 +55,7 @@ export default function SaleForm({
     { channel: "CASH", amount: "" },
   ]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [customerId, setCustomerId] = useState("");
-  const [walkinName, setWalkinName] = useState("");
-  const [walkinPhone, setWalkinPhone] = useState("");
+  const [customer, setCustomer] = useState<CustomerSelection>(null);
   const [isPending, startTransition] = useTransition();
 
   // Distinct buckets that have at least one in-stock variant
@@ -107,10 +107,11 @@ export default function SaleForm({
     e.preventDefault();
     const fd = new FormData();
     fd.append("date", date);
-    fd.append("customerId", customerId);
-    if (!customerId && walkinName.trim()) {
-      fd.append("walkinName", walkinName.trim());
-      fd.append("walkinPhone", walkinPhone.trim());
+    if (customer?.type === "existing") {
+      fd.append("customerId", customer.id);
+    } else if (customer?.type === "new") {
+      fd.append("walkinName", customer.name);
+      fd.append("walkinPhone", customer.phone);
     }
     fd.append(
       "lines",
@@ -144,59 +145,15 @@ export default function SaleForm({
         </div>
         <div>
           <label className="block text-sm text-zinc-300 mb-1">
-            Customer (optional)
+            Customer <span className="text-zinc-500">(optional)</span>
           </label>
-          <select
-            value={customerId}
-            onChange={(e) => {
-              setCustomerId(e.target.value);
-              setWalkinName("");
-              setWalkinPhone("");
-            }}
-            className={inputClass + " w-full"}
-          >
-            <option value="">Walk-in</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CustomerPicker
+            customers={customers}
+            value={customer}
+            onChange={setCustomer}
+          />
         </div>
       </div>
-
-      {/* Walk-in name capture */}
-      {!customerId && (
-        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-3">
-          <p className="text-xs text-zinc-500 mb-2">
-            Record this walk-in customer? (optional — useful for tracking)
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">Name</label>
-              <input
-                type="text"
-                value={walkinName}
-                onChange={(e) => setWalkinName(e.target.value)}
-                placeholder="e.g. John Kamau"
-                className={inputClass + " w-full"}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">
-                Phone (optional)
-              </label>
-              <input
-                type="tel"
-                value={walkinPhone}
-                onChange={(e) => setWalkinPhone(e.target.value)}
-                placeholder="e.g. 0712 345 678"
-                className={inputClass + " w-full"}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Lines */}
       <div>
