@@ -172,7 +172,11 @@ export default function SaleForm({
           {lines.map((line, i) => {
             const v = getVariant(line.variantId);
             const wac = v ? parseFloat(String(v.wacCost)) : 0;
+            const refPrice = v?.referenceSellPrice
+              ? parseFloat(String(v.referenceSellPrice))
+              : null;
             const price = parseFloat(line.unitPrice) || 0;
+            const delta = refPrice !== null && price > 0 ? price - refPrice : null;
             const qtyNum = parseInt(line.qty) || 0;
             const maxQty = v?.qtyOnHand ?? 0;
             const overStock = !!v && qtyNum > maxQty;
@@ -250,10 +254,10 @@ export default function SaleForm({
                   </div>
                 </div>
 
-                {/* Row 2: Qty → Price → Line total */}
-                <div className="grid grid-cols-12 gap-2 items-center">
+                {/* Row 2: Qty → Price → Sell ref delta → Line total */}
+                <div className="grid grid-cols-12 gap-2 items-start">
                   {/* Qty */}
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <input
                       type="number"
                       min="1"
@@ -281,8 +285,8 @@ export default function SaleForm({
                     )}
                   </div>
 
-                  {/* Price */}
-                  <div className="col-span-4">
+                  {/* Selling price */}
+                  <div className="col-span-3">
                     <input
                       type="number"
                       min="0"
@@ -291,7 +295,7 @@ export default function SaleForm({
                       onChange={(e) =>
                         updateLine(i, { unitPrice: e.target.value })
                       }
-                      placeholder="Unit price"
+                      placeholder="Selling price"
                       required
                       className={
                         inputClass +
@@ -301,8 +305,34 @@ export default function SaleForm({
                     />
                   </div>
 
+                  {/* Sell ref + delta */}
+                  <div className="col-span-4 pt-2 pl-1">
+                    {refPrice !== null ? (
+                      <div className="text-xs leading-5">
+                        <span className="text-zinc-500">
+                          Sell ref {fmt(refPrice)}
+                        </span>
+                        {delta !== null && (
+                          <span
+                            className={
+                              delta > 0
+                                ? "text-green-400"
+                                : delta < 0
+                                ? "text-red-400"
+                                : "text-zinc-500"
+                            }
+                          >
+                            {" · "}
+                            {delta > 0 ? "+" : ""}
+                            {fmt(delta)}
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+
                   {/* Line total */}
-                  <div className="col-span-5 text-right text-sm text-zinc-300 font-medium">
+                  <div className="col-span-3 pt-2 text-right text-sm text-zinc-300 font-medium">
                     {lineAmt > 0 ? fmt(lineAmt) : "—"}
                   </div>
                 </div>

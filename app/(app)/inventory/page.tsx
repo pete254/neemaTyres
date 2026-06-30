@@ -77,7 +77,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               <th className="pb-3 pr-4">Pattern</th>
               <th className="pb-3 pr-4 text-right">Qty</th>
               <th className="pb-3 pr-4 text-right">WAC</th>
-              <th className="pb-3 pr-4 text-right">Ref Price</th>
+              <th className="pb-3 pr-4 text-right">Sell Ref</th>
               <th className="pb-3 text-right">Value@WAC</th>
             </tr>
           </thead>
