@@ -16,16 +16,39 @@ import {
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-const SYSTEM =
-  "You are a helpful assistant for Neema Tyres shop. Answer questions about sales, " +
-  "stock, debt, suppliers, customers, and purchases using the available tools. Be concise and clear. " +
-  "Format monetary amounts in KES with comma separators (e.g. KES 45,000). " +
-  "When asked about a date range, pick sensible defaults if the user is vague " +
-  "(e.g. 'this month' = first to today). " +
-  "For questions like 'who owes the most?' or 'who is my biggest debtor?' use get_all_debtors. " +
-  "For purchase history use get_purchases_between. " +
-  "To find customers or look up a customer name use list_customers. " +
-  "Never write SQL or raw code.";
+function buildSystemPrompt(): string {
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const monthStart = `${year}-${month}-01`;
+  const weekStart = new Date(now);
+  weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay());
+  const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+  return (
+    "You are a helpful assistant for Neema Tyres shop in Kenya. " +
+    "Answer questions about sales, stock, debt, suppliers, customers, and purchases using the available tools. " +
+    "Be concise and clear. Format monetary amounts in KES with comma separators (e.g. KES 45,000).\n\n" +
+    `TODAY IS ${todayStr}. Use this to resolve relative dates:\n` +
+    `- "today" = ${todayStr}\n` +
+    `- "this week" = ${weekStartStr} to ${todayStr}\n` +
+    `- "this month" = ${monthStart} to ${todayStr}\n` +
+    `- "yesterday" = ${new Date(now.getTime() - 86400000).toISOString().slice(0, 10)}\n\n` +
+    "Tool guidance:\n" +
+    "- 'what did I sell today/this week/this month?' → get_sales_between\n" +
+    "- 'what did I buy/purchase today/this week?' → get_purchases_between\n" +
+    "- 'who owes the most / who is my biggest debtor / highest debtor / top debtor?' → get_all_debtors (returns sorted highest first)\n" +
+    "- 'how much does [name] owe?' → get_customer_debt\n" +
+    "- 'show me all debtors' → get_all_debtors\n" +
+    "- 'what stock do I have / what tyres are in stock?' → get_stock_on_hand\n" +
+    "- 'best selling tyres / top sellers?' → get_top_selling_variants\n" +
+    "- 'aged debtors / who hasn't paid in 60 days?' → get_debtors_aged\n" +
+    "- 'what happened today / day summary?' → get_day_book\n" +
+    "- 'find customer / is [name] a customer?' → list_customers\n" +
+    "Never write SQL or raw code."
+  );
+}
 
 function serialize(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
@@ -105,7 +128,7 @@ export async function runQueryAgent(userMessage: string): Promise<string> {
   const chat = ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
-      systemInstruction: SYSTEM,
+      systemInstruction: buildSystemPrompt(),
       tools: [{ functionDeclarations: queryToolDecls }],
     },
   });
