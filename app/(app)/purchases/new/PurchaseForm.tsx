@@ -19,19 +19,19 @@ interface Supplier {
 }
 
 interface PurchaseLine {
+  bucket: string;
   variantId: string;
   qty: string;
   unitCost: string;
 }
 
+const BUCKET_ORDER = ["22.5", "20", "19.5", "17.5", "16", "15", "14", "13"];
+
 const inputClass =
   "bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]";
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-  }).format(n);
+  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(n);
 
 function computeWacPreview(
   currentQty: number,
@@ -52,29 +52,36 @@ export default function PurchaseForm({
   suppliers: Supplier[];
 }) {
   const [lines, setLines] = useState<PurchaseLine[]>([
-    { variantId: "", qty: "1", unitCost: "" },
+    { bucket: "", variantId: "", qty: "1", unitCost: "" },
   ]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [supplierId, setSupplierId] = useState("");
   const [terms, setTerms] = useState<"CASH" | "CREDIT" | "FREE">("CASH");
   const [isPending, startTransition] = useTransition();
 
+  // All buckets that have at least one known variant (any stock level)
+  const allBuckets = BUCKET_ORDER.filter((b) =>
+    variants.some((v) => v.sizeBucket === b)
+  );
+
+  const variantsForBucket = (bucket: string) =>
+    variants.filter((v) => v.sizeBucket === bucket);
+
+  const getVariant = (variantId: string) =>
+    variants.find((v) => v.id === variantId);
+
   const addLine = () =>
     setLines((prev) => [
       ...prev,
-      { variantId: "", qty: "1", unitCost: "" },
+      { bucket: "", variantId: "", qty: "1", unitCost: "" },
     ]);
 
   const removeLine = (i: number) =>
     setLines((prev) => prev.filter((_, idx) => idx !== i));
 
-  const updateLine = (
-    i: number,
-    field: keyof PurchaseLine,
-    value: string
-  ) =>
+  const updateLine = (i: number, patch: Partial<PurchaseLine>) =>
     setLines((prev) =>
-      prev.map((l, idx) => (idx === i ? { ...l, [field]: value } : l))
+      prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l))
     );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -83,15 +90,19 @@ export default function PurchaseForm({
     fd.append("date", date);
     fd.append("supplierId", supplierId);
     fd.append("terms", terms);
-    fd.append("lines", JSON.stringify(lines));
+    fd.append(
+      "lines",
+      JSON.stringify(lines.map(({ bucket: _b, ...rest }) => rest))
+    );
     startTransition(async () => {
       await createPurchase(fd);
     });
   };
 
-  const total = lines.reduce((sum, l) => {
-    return sum + (parseFloat(l.qty) || 0) * (parseFloat(l.unitCost) || 0);
-  }, 0);
+  const total = lines.reduce(
+    (sum, l) => sum + (parseFloat(l.qty) || 0) * (parseFloat(l.unitCost) || 0),
+    0
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
@@ -150,9 +161,10 @@ export default function PurchaseForm({
             + Add line
           </button>
         </div>
+
         <div className="space-y-3">
           {lines.map((line, i) => {
-            const v = variants.find((x) => x.id === line.variantId);
+            const v = getVariant(line.variantId);
             const currentWac = v ? parseFloat(v.wacCost) : 0;
             const currentQty = v ? v.qtyOnHand : 0;
             const addQty = parseFloat(line.qty) || 0;
@@ -162,55 +174,65 @@ export default function PurchaseForm({
                 ? computeWacPreview(currentQty, currentWac, addQty, cost)
                 : null;
             const lineAmt = addQty * cost;
+            const bucketVariants = variantsForBucket(line.bucket);
+
             return (
-              <div key={i} className="space-y-1">
+              <div
+                key={i}
+                className="bg-[#111] border border-[#2A2A2A] rounded-lg p-3 space-y-2"
+              >
+                {/* Row 1: Size bucket → Tyre */}
                 <div className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-5">
+                  {/* Size bucket */}
+                  <div className="col-span-3">
                     <select
-                      value={line.variantId}
+                      value={line.bucket}
                       onChange={(e) =>
-                        updateLine(i, "variantId", e.target.value)
+                        updateLine(i, { bucket: e.target.value, variantId: "" })
                       }
                       required
                       className={inputClass + " w-full"}
                     >
-                      <option value="">Select tyre...</option>
-                      {variants.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.sizeBucket} · {v.sizeCanonical} — {v.brand.name}
-                          {v.patternCode ? ` (${v.patternCode})` : ""}
+                      <option value="">Size...</option>
+                      {allBuckets.map((b) => (
+                        <option key={b} value={b}>
+                          {b}"
                         </option>
                       ))}
                     </select>
                   </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      min="1"
-                      value={line.qty}
-                      onChange={(e) => updateLine(i, "qty", e.target.value)}
-                      placeholder="Qty"
-                      required
-                      className={inputClass + " w-full"}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={line.unitCost}
+
+                  {/* Tyre */}
+                  <div className="col-span-8">
+                    <select
+                      value={line.variantId}
                       onChange={(e) =>
-                        updateLine(i, "unitCost", e.target.value)
+                        updateLine(i, { variantId: e.target.value })
                       }
-                      placeholder="Cost"
-                      required={terms !== "FREE"}
-                      className={inputClass + " w-full"}
-                    />
+                      required
+                      disabled={!line.bucket}
+                      className={
+                        inputClass +
+                        " w-full " +
+                        (!line.bucket ? "opacity-40 cursor-not-allowed" : "")
+                      }
+                    >
+                      <option value="">
+                        {line.bucket
+                          ? "Select tyre..."
+                          : "— pick a size first —"}
+                      </option>
+                      {bucketVariants.map((bv) => (
+                        <option key={bv.id} value={bv.id}>
+                          {bv.sizeCanonical} — {bv.brand.name}
+                          {bv.patternCode ? ` (${bv.patternCode})` : ""} ·{" "}
+                          {bv.qtyOnHand} on hand
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="col-span-2 text-right text-sm text-zinc-400">
-                    {lineAmt > 0 ? fmt(lineAmt) : "-"}
-                  </div>
+
+                  {/* Remove */}
                   <div className="col-span-1 text-center">
                     {lines.length > 1 && (
                       <button
@@ -223,16 +245,51 @@ export default function PurchaseForm({
                     )}
                   </div>
                 </div>
+
+                {/* Row 2: Qty → Cost → Line total */}
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-3">
+                    <input
+                      type="number"
+                      min="1"
+                      value={line.qty}
+                      onChange={(e) => updateLine(i, { qty: e.target.value })}
+                      placeholder="Qty"
+                      required
+                      className={inputClass + " w-full"}
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={line.unitCost}
+                      onChange={(e) =>
+                        updateLine(i, { unitCost: e.target.value })
+                      }
+                      placeholder="Unit cost"
+                      required={terms !== "FREE"}
+                      className={inputClass + " w-full"}
+                    />
+                  </div>
+                  <div className="col-span-5 text-right text-sm text-zinc-300 font-medium">
+                    {lineAmt > 0 ? fmt(lineAmt) : "—"}
+                  </div>
+                </div>
+
+                {/* WAC preview */}
                 {v && newWac !== null && (
-                  <p className="text-xs text-zinc-500 pl-1">
-                    WAC: {fmt(currentWac)} → {fmt(newWac)} (qty:{" "}
-                    {currentQty} → {currentQty + addQty})
+                  <p className="text-xs text-zinc-500">
+                    WAC: {fmt(currentWac)} → {fmt(newWac)} · qty:{" "}
+                    {currentQty} → {currentQty + addQty}
                   </p>
                 )}
               </div>
             );
           })}
         </div>
+
         <div className="mt-2 text-right text-sm font-semibold text-white">
           Total: {fmt(total)}
         </div>
