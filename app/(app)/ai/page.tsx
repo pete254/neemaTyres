@@ -3,18 +3,15 @@
 import { useState, useRef, useEffect } from "react";
 import type { Draft, Gap } from "@/lib/ai/types";
 
-type Mode = "query" | "entry";
-
 interface Message {
   role: "user" | "assistant";
   content: string;
   drafts?: Draft[];
   gaps?: Gap[];
-  status?: "gaps" | "confirm" | "posted";
+  status?: "gaps" | "confirm" | "posted" | "query";
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat("en-KE").format(n);
+const fmt = (n: number) => new Intl.NumberFormat("en-KE").format(n);
 
 function GapList({ gaps }: { gaps: Gap[] }) {
   return (
@@ -41,18 +38,14 @@ function DraftCard({ draft }: { draft: Draft }) {
     return (
       <div className="border border-[#2A2A2A] rounded-lg p-3 bg-[#0A0A0A] text-sm">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-semibold text-[#EAB308]">
-            SALE — {dateStr}
-          </span>
+          <span className="font-semibold text-[#EAB308]">SALE — {dateStr}</span>
           {draft.customerName && (
             <span className="text-zinc-400">{draft.customerName}</span>
           )}
         </div>
-
         {draft.warnings.map((w, i) => (
           <div key={i} className="text-orange-400 text-xs mb-1">⚠ {w}</div>
         ))}
-
         <div className="space-y-1 mb-2">
           {draft.lines.map((l, i) => (
             <div key={i} className="flex justify-between text-zinc-300">
@@ -62,13 +55,10 @@ function DraftCard({ draft }: { draft: Draft }) {
                   <span className="ml-1 text-orange-400 text-xs">[position?]</span>
                 )}
               </span>
-              <span>
-                {l.unitPrice ? `KES ${fmt(l.unitPrice * l.qty)}` : "—"}
-              </span>
+              <span>{l.unitPrice ? `KES ${fmt(l.unitPrice * l.qty)}` : "—"}</span>
             </div>
           ))}
         </div>
-
         <div className="border-t border-[#2A2A2A] pt-2 mt-2">
           <div className="flex justify-between font-semibold text-white mb-1">
             <span>Total</span>
@@ -85,7 +75,6 @@ function DraftCard({ draft }: { draft: Draft }) {
     );
   }
 
-  // Purchase
   return (
     <div className="border border-[#2A2A2A] rounded-lg p-3 bg-[#0A0A0A] text-sm">
       <div className="flex items-center justify-between mb-2">
@@ -95,20 +84,14 @@ function DraftCard({ draft }: { draft: Draft }) {
           {draft.terms ? ` · ${draft.terms}` : ""}
         </span>
       </div>
-
       {draft.warnings.map((w, i) => (
         <div key={i} className="text-orange-400 text-xs mb-1">⚠ {w}</div>
       ))}
-
       <div className="space-y-1">
         {draft.lines.map((l, i) => (
           <div key={i} className="flex justify-between text-zinc-300">
-            <span>
-              {l.qty} × {l.variantLabel ?? l.raw}
-            </span>
-            <span>
-              {l.unitCost ? `KES ${fmt(l.unitCost * l.qty)}` : "—"}
-            </span>
+            <span>{l.qty} × {l.variantLabel ?? l.raw}</span>
+            <span>{l.unitCost ? `KES ${fmt(l.unitCost * l.qty)}` : "—"}</span>
           </div>
         ))}
       </div>
@@ -117,7 +100,6 @@ function DraftCard({ draft }: { draft: Draft }) {
 }
 
 export default function AiPage() {
-  const [mode, setMode] = useState<Mode>("query");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -133,48 +115,52 @@ export default function AiPage() {
     if (!text || loading) return;
     setInput("");
 
-    const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
 
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, message: text }),
+        body: JSON.stringify({ mode: "smart", message: text }),
       });
       const data = await res.json();
 
-      if (mode === "query") {
+      if (data._resolvedAs === "query" || data.answer) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: data.answer ?? data.error ?? "No response." },
+          {
+            role: "assistant",
+            content: data.answer ?? data.error ?? "No response.",
+            status: "query",
+          },
         ]);
-      } else {
-        const { status, drafts, gaps, message: msg } = data;
+        return;
+      }
 
-        if (status === "gaps") {
-          setPendingDrafts(drafts ?? []);
-          const gapText =
-            gaps?.length > 0
-              ? `I need a few more details:\n${gaps.map((g: Gap) => `• ${g.question}`).join("\n")}`
-              : msg ?? "Could not parse. Please try again.";
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: gapText, drafts, gaps, status },
-          ]);
-        } else if (status === "confirm") {
-          setPendingDrafts(drafts ?? []);
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: `Ready to post ${drafts?.length ?? 0} transaction(s). Review below and confirm.`,
-              drafts,
-              status,
-            },
-          ]);
-        }
+      // Entry flow
+      const { status, drafts, gaps, message: msg } = data;
+      if (status === "gaps") {
+        setPendingDrafts(drafts ?? []);
+        const gapText =
+          gaps?.length > 0
+            ? `I need a few more details:`
+            : msg ?? "Could not parse. Please rephrase.";
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: gapText, drafts, gaps, status },
+        ]);
+      } else if (status === "confirm") {
+        setPendingDrafts(drafts ?? []);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `Ready to post ${drafts?.length ?? 0} transaction(s). Review below and confirm.`,
+            drafts,
+            status,
+          },
+        ]);
       }
     } catch {
       setMessages((prev) => [
@@ -195,21 +181,18 @@ export default function AiPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: "entry",
+          mode: "smart",
           action: "confirm",
           sessionDrafts: pendingDrafts,
         }),
       });
       const data = await res.json();
-
       const { results } = data;
-      const successCount = results?.filter(
-        (r: { success: boolean }) => r.success
-      ).length ?? 0;
+      const successCount = results?.filter((r: { success: boolean }) => r.success).length ?? 0;
       const failCount = (results?.length ?? 0) - successCount;
 
-      let msg = `Posted ${successCount} transaction(s).`;
-      if (failCount > 0) msg += ` ${failCount} failed.`;
+      let msg = `Posted ${successCount} transaction(s) successfully.`;
+      if (failCount > 0) msg += ` ${failCount} failed — check the details and try again.`;
 
       setMessages((prev) => [...prev, { role: "assistant", content: msg, status: "posted" }]);
       setPendingDrafts(null);
@@ -231,43 +214,28 @@ export default function AiPage() {
   }
 
   const showConfirm =
-    mode === "entry" &&
     pendingDrafts &&
     pendingDrafts.length > 0 &&
     messages.at(-1)?.status === "confirm";
 
   return (
     <div className="flex flex-col h-full p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4">
         <h2 className="text-2xl font-bold text-white">AI Assistant</h2>
-        <div className="flex rounded-lg overflow-hidden border border-[#2A2A2A]">
-          {(["query", "entry"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setMode(m);
-                setMessages([]);
-                setPendingDrafts(null);
-              }}
-              className={`px-4 py-1.5 text-sm font-medium transition-colors capitalize ${
-                mode === m
-                  ? "bg-[#EAB308] text-black"
-                  : "bg-[#111] text-zinc-400 hover:text-white"
-              }`}
-            >
-              {m === "query" ? "Ask" : "Entry"}
-            </button>
-          ))}
-        </div>
+        <p className="text-xs text-zinc-500 mt-0.5">
+          Ask anything or describe a sale / purchase to record it
+        </p>
       </div>
 
-      {/* Message thread */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
         {messages.length === 0 && (
-          <div className="text-zinc-500 text-sm mt-8 text-center">
-            {mode === "query"
-              ? 'Ask anything — e.g. "How much does Githinji owe?" or "Show sales this week"'
-              : 'Describe a transaction — e.g. "Kimani 2 Roadshine AP at 23,000, 50,000 mum rest debt"'}
+          <div className="text-zinc-500 text-sm mt-8 text-center space-y-1">
+            <p className="font-medium text-zinc-400">What can I help you with?</p>
+            <p>&ldquo;Who is my highest debtor?&rdquo;</p>
+            <p>&ldquo;What did I sell today?&rdquo;</p>
+            <p>&ldquo;What stock do I have in 22.5?&rdquo;</p>
+            <p>&ldquo;Kamau 2 Roadshine AP 22.5 at 28,000, cash&rdquo;</p>
+            <p>&ldquo;Received 10 Linglong 315 from Neema at 18,500 each&rdquo;</p>
           </div>
         )}
 
@@ -285,9 +253,7 @@ export default function AiPage() {
             >
               {msg.content}
 
-              {msg.gaps && msg.gaps.length > 0 && (
-                <GapList gaps={msg.gaps} />
-              )}
+              {msg.gaps && msg.gaps.length > 0 && <GapList gaps={msg.gaps} />}
 
               {msg.drafts && msg.drafts.length > 0 && (
                 <div className="mt-3 space-y-2">
@@ -311,7 +277,6 @@ export default function AiPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Confirm button */}
       {showConfirm && (
         <div className="mb-3">
           <button
@@ -319,23 +284,18 @@ export default function AiPage() {
             disabled={loading}
             className="w-full py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors disabled:opacity-50"
           >
-            Confirm & Post {pendingDrafts!.length} transaction
+            Confirm &amp; Post {pendingDrafts!.length} transaction
             {pendingDrafts!.length !== 1 ? "s" : ""}
           </button>
         </div>
       )}
 
-      {/* Input */}
       <div className="flex gap-2">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={
-            mode === "query"
-              ? "Ask a question…"
-              : "Describe a sale or purchase…"
-          }
+          placeholder='Ask a question or describe a sale / purchase…'
           rows={2}
           className="flex-1 resize-none rounded-lg bg-[#111] border border-[#2A2A2A] text-white px-3 py-2 text-sm placeholder-zinc-600 focus:outline-none focus:border-[#EAB308] transition-colors"
         />
