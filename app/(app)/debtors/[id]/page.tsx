@@ -19,6 +19,7 @@ export default async function CustomerLedgerPage({ params }: PageProps) {
   const customer = await prisma.customer.findUnique({
     where: { id },
     include: {
+      openingBalanceEntries: { where: { kind: "DEBTOR" } },
       sales: {
         include: { payments: { where: { channel: "DEBT" } } },
         where: { payments: { some: { channel: "DEBT" } } },
@@ -39,6 +40,15 @@ export default async function CustomerLedgerPage({ params }: PageProps) {
   };
 
   const rawEntries: RawEntry[] = [
+    // Opening balance carried forward
+    ...customer.openingBalanceEntries.map((e) => ({
+      id: e.id,
+      date: e.asOfDate ?? e.createdAt,
+      description: e.note ?? "Opening balance (carried forward)",
+      debit: new Decimal(e.amount?.toString() ?? "0"),
+      credit: new Decimal(0),
+    })),
+    // Sales on credit
     ...customer.sales.map((sale) => {
       const debtAmount = sale.payments.reduce(
         (sum, p) => sum.plus(p.amount.toString()),
@@ -52,6 +62,7 @@ export default async function CustomerLedgerPage({ params }: PageProps) {
         credit: new Decimal(0),
       };
     }),
+    // Debt collections / payments
     ...customer.debtCollections.map((dc) => ({
       id: dc.id,
       date: dc.date,
