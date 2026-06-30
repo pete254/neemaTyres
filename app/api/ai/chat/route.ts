@@ -6,6 +6,19 @@ import type { Draft } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
 
+// Zero-cost heuristic: returns true if the message looks like a transaction
+// description rather than a question. A transaction typically has a price
+// (4+ digit number) PLUS at least one of: tyre size, payment word, or
+// stock-movement word. This avoids a wasted Gemini call for every query.
+function looksLikeTransaction(text: string): boolean {
+  const lower = text.toLowerCase();
+  const hasPrice = /\b\d[\d,]{3,}\b/.test(text); // 4+ digit number e.g. 18500 or 18,500
+  const hasTyreSize = /\b(22\.5|20|19\.5|17\.5|16|15|14|13|315|295|275|265|235|225|11r|825r|900r|1000r)\b/i.test(text);
+  const hasPaymentWord = /\b(cash|mpesa|mum|debt|deni|credit|balance|rest)\b/.test(lower);
+  const hasStockWord = /\b(sold|sale|bought|purchase|received|receive|stock)\b/.test(lower);
+  return hasPrice && (hasTyreSize || hasPaymentWord || hasStockWord);
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -52,18 +65,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (mode === "smart") {
-      // Try to parse as a transaction first.
-      // If Gemini finds no transactions → fall back to the query agent.
-      const entryResult = await parseEntry(text);
-      if (
-        entryResult.status === "gaps" &&
-        (!entryResult.drafts || entryResult.drafts.length === 0) &&
-        (!entryResult.gaps || entryResult.gaps.length === 0)
-      ) {
-        const answer = await runQueryAgent(text);
-        return NextResponse.json({ answer, _resolvedAs: "query" });
+      // Classify intent with a zero-cost keyword heuristic before calling Gemini.
+      // A transaction description typically contains a price (4+ digit number) AND
+      // at least one of: a tyre size, a payment keyword, or a purchase keyword.
+      if (looksLikeTransaction(text)) {
+        const entryResult = await parseEntry(text);
+        return NextResponse.json({ ...entryResult, _resolvedAs: "entry" });
       }
-      return NextResponse.json({ ...entryResult, _resolvedAs: "entry" });
+      const answer = await runQueryAgent(text);
+      return NextResponse.json({ answer, _resolvedAs: "query" });
     }
 
     return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
