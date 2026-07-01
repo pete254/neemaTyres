@@ -1,6 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import Decimal from "decimal.js";
 
+export interface SaleLine {
+  variantLabel: string;
+  qty: number;
+  unitPrice: Decimal;
+  lineTotal: Decimal;
+}
+
+export interface SaleGroup {
+  saleId: string;
+  customerId: string | null;
+  customerName: string | null;
+  total: Decimal;
+  channels: string;
+  lines: SaleLine[];
+}
+
 export interface SaleDay {
   date: string;
   salesCount: number;
@@ -8,6 +24,7 @@ export interface SaleDay {
   mpesa: Decimal;
   debt: Decimal;
   revenue: Decimal;
+  saleGroups: SaleGroup[];
   lines: Array<{
     saleId: string;
     saleDate: Date;
@@ -84,6 +101,27 @@ export async function getSalesBetween(
         }))
       );
 
+      const saleGroups: SaleGroup[] = daySales.map((sale) => {
+        const total = sale.payments.reduce(
+          (sum, p) => sum.plus(p.amount.toString()),
+          new Decimal(0)
+        );
+        const channels = [...new Set(sale.payments.map((p) => p.channel))].join(", ");
+        return {
+          saleId: sale.id,
+          customerId: sale.customerId,
+          customerName: sale.customer?.name ?? null,
+          total,
+          channels,
+          lines: sale.lines.map((line) => ({
+            variantLabel: `${line.variant.sizeCanonical} ${line.variant.brand.name}${line.variant.subLabel ? ` ${line.variant.subLabel}` : ""}`.trim(),
+            qty: line.qty,
+            unitPrice: new Decimal(line.unitPrice.toString()),
+            lineTotal: new Decimal(line.lineTotal.toString()),
+          })),
+        };
+      });
+
       return {
         date,
         salesCount: daySales.length,
@@ -91,6 +129,7 @@ export async function getSalesBetween(
         mpesa,
         debt,
         revenue: cash.plus(mpesa).plus(debt),
+        saleGroups,
         lines,
       };
     }

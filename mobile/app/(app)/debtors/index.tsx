@@ -40,7 +40,18 @@ export default function DebtorsScreen() {
               <Text style={styles.name}>{item.name}</Text>
               {item.phone && <Text style={styles.phone}>{item.phone}</Text>}
             </View>
-            <Text style={styles.amount}>KES {parseFloat(item.outstanding).toLocaleString()}</Text>
+            <View style={styles.rowRight}>
+              <Text style={styles.amount}>KES {parseFloat(item.outstanding).toLocaleString()}</Text>
+              <TouchableOpacity
+                style={styles.collectBtn}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push(`/(app)/debt-collections/new?customerId=${item.id}` as never);
+                }}
+              >
+                <Text style={styles.collectBtnText}>Collect</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         )}
         ListEmptyComponent={!isLoading ? <Text style={styles.empty}>No debtors</Text> : null}
@@ -59,6 +70,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#1A1A1A" },
   name: { color: "#fff", fontSize: 15, fontWeight: "500" },
   phone: { color: "#71717A", fontSize: 13, marginTop: 2 },
+  rowRight: { alignItems: "flex-end", gap: 6 },
   amount: { color: "#F87171", fontSize: 14, fontWeight: "600" },
+  collectBtn: { backgroundColor: "#1C1A00", borderWidth: 1, borderColor: "#EAB308", borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  collectBtnText: { color: "#EAB308", fontSize: 11, fontWeight: "600" },
   empty: { color: "#71717A", textAlign: "center", marginTop: 40 },
 });

@@ -4,6 +4,13 @@ import { useState, useTransition } from "react";
 import { createSale } from "@/lib/actions/sale";
 import CustomerPicker, { type CustomerSelection } from "./CustomerPicker";
 
+export interface SaleFormInitialData {
+  date: string;
+  customer: CustomerSelection;
+  lines: { bucket: string; variantId: string; qty: string; unitPrice: string }[];
+  payments: { channel: "CASH" | "MPESA" | "DEBT"; amount: string }[];
+}
+
 interface Variant {
   id: string;
   sizeBucket: string;
@@ -44,27 +51,34 @@ const fmt = (n: number) =>
 export default function SaleForm({
   variants,
   customers,
+  initialData,
+  submitAction,
+  submitLabel = "Record Sale",
 }: {
   variants: Variant[];
   customers: Customer[];
+  initialData?: SaleFormInitialData;
+  submitAction?: (fd: FormData) => Promise<void>;
+  submitLabel?: string;
 }) {
-  const [lines, setLines] = useState<SaleLine[]>([
-    { bucket: "", variantId: "", qty: "1", unitPrice: "" },
-  ]);
-  const [payments, setPayments] = useState<SalePayment[]>([
-    { channel: "CASH", amount: "" },
-  ]);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [customer, setCustomer] = useState<CustomerSelection>(null);
+  const [lines, setLines] = useState<SaleLine[]>(
+    initialData?.lines ?? [{ bucket: "", variantId: "", qty: "1", unitPrice: "" }]
+  );
+  const [payments, setPayments] = useState<SalePayment[]>(
+    initialData?.payments ?? [{ channel: "CASH", amount: "" }]
+  );
+  const [date, setDate] = useState(initialData?.date ?? new Date().toISOString().slice(0, 10));
+  const [customer, setCustomer] = useState<CustomerSelection>(initialData?.customer ?? null);
   const [isPending, startTransition] = useTransition();
 
-  // Distinct buckets that have at least one in-stock variant
+  // Distinct buckets: always include buckets from existing lines (edit mode)
+  const editBuckets = new Set(initialData?.lines.map((l) => l.bucket) ?? []);
   const availableBuckets = BUCKET_ORDER.filter((b) =>
-    variants.some((v) => v.sizeBucket === b && v.qtyOnHand > 0)
+    editBuckets.has(b) || variants.some((v) => v.sizeBucket === b && v.qtyOnHand > 0)
   );
 
   const inStockForBucket = (bucket: string) =>
-    variants.filter((v) => v.sizeBucket === bucket && v.qtyOnHand > 0);
+    variants.filter((v) => v.sizeBucket === bucket && (v.qtyOnHand > 0 || editBuckets.has(bucket)));
 
   const getVariant = (variantId: string) =>
     variants.find((v) => v.id === variantId);
@@ -119,7 +133,7 @@ export default function SaleForm({
     );
     fd.append("payments", JSON.stringify(payments));
     startTransition(async () => {
-      await createSale(fd);
+      await (submitAction ?? createSale)(fd);
     });
   };
 
@@ -468,7 +482,7 @@ export default function SaleForm({
         }
         className="bg-[#EAB308] hover:bg-[#CA8A04] disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold rounded px-6 py-2.5 transition-colors"
       >
-        {isPending ? "Saving..." : "Record Sale"}
+        {isPending ? "Saving..." : submitLabel}
       </button>
     </form>
   );

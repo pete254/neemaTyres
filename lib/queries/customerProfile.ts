@@ -13,6 +13,10 @@ export interface CustomerProfileResult {
   id: string;
   name: string;
   phone: string | null;
+  email: string | null;
+  address: string | null;
+  town: string | null;
+  poBox: string | null;
   createdAt: Date;
   totalSpent: Decimal;
   visitCount: number;
@@ -107,6 +111,10 @@ export async function getCustomerProfile(
     id: customer.id,
     name: customer.name,
     phone: customer.phone,
+    email: customer.email ?? null,
+    address: customer.address ?? null,
+    town: customer.town ?? null,
+    poBox: customer.poBox ?? null,
     createdAt: customer.createdAt,
     totalSpent,
     visitCount: customer.sales.length,

@@ -29,3 +29,25 @@ export async function createCustomer(formData: FormData) {
   revalidatePath("/customers");
   redirect(`/customers/${customer.id}`);
 }
+
+export async function updateCustomerDetails(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const id = formData.get("id") as string;
+  if (!id) throw new Error("id required");
+
+  await prisma.customer.update({
+    where: { id },
+    data: {
+      phone:   (formData.get("phone") as string)?.trim() || null,
+      email:   (formData.get("email") as string)?.trim() || null,
+      address: (formData.get("address") as string)?.trim() || null,
+      town:    (formData.get("town") as string)?.trim() || null,
+      poBox:   (formData.get("poBox") as string)?.trim() || null,
+    },
+  });
+
+  revalidatePath(`/customers/${id}`);
+  revalidatePath(`/debtors/${id}`);
+}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getPurchasesBetween } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
 import Decimal from "decimal.js";
@@ -25,7 +26,15 @@ export default async function PurchasesPage({ searchParams }: PageProps) {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Purchases</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-white">Purchases</h2>
+        <Link
+          href="/purchases/new"
+          className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors"
+        >
+          + Record Purchase
+        </Link>
+      </div>
 
       <FilterBar
         basePath="/purchases"

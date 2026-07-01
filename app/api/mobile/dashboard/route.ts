@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const todayStart = new Date(todayStr + "T00:00:00Z");
   const todayEnd = new Date(todayStr + "T23:59:59Z");
 
-  const [inventory, customers, exceptions, todaySaleLines, todayPurchaseAgg] =
+  const [inventory, customers, todaySaleLines, todayPurchaseAgg] =
     await Promise.all([
       prisma.productVariant.findMany({
         select: { qtyOnHand: true, wacCost: true },
@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
           debtCollections: true,
         },
       }),
-      prisma.exceptionFlag.count({ where: { resolved: false } }),
       prisma.saleLine.findMany({
         where: { sale: { date: { gte: todayStart, lte: todayEnd } } },
         select: { qty: true, unitCostAtSale: true, lineTotal: true },
@@ -44,6 +43,7 @@ export async function GET(req: NextRequest) {
     (sum, v) => sum.plus(new Decimal(v.qtyOnHand).mul(v.wacCost.toString())),
     new Decimal(0)
   );
+  const tyresInStore = inventory.reduce((sum, v) => sum + v.qtyOnHand, 0);
 
   const debtorData = customers
     .map((c) => {
@@ -81,9 +81,9 @@ export async function GET(req: NextRequest) {
   return ok({
     todayStr,
     stockValue,
+    tyresInStore,
     activeDebtors,
     totalOwed,
-    exceptions,
     todaySales,
     todayPurchases,
     todayProfit,

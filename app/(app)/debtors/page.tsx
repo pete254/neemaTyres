@@ -53,12 +53,20 @@ export default async function DebtorsPage() {
                     : "-"}
                 </td>
                 <td className="py-3 text-right">
-                  <Link
-                    href={`/debtors/${d.id}`}
-                    className="text-xs text-zinc-500 hover:text-[#EAB308] transition-colors"
-                  >
-                    View →
-                  </Link>
+                  <div className="flex items-center justify-end gap-3">
+                    <Link
+                      href={`/debt-collections/new?customerId=${d.id}`}
+                      className="text-xs bg-[#1C1A00] border border-[#EAB308] text-[#EAB308] hover:bg-[#EAB308] hover:text-black rounded px-2 py-1 transition-colors"
+                    >
+                      Collect
+                    </Link>
+                    <Link
+                      href={`/debtors/${d.id}`}
+                      className="text-xs text-zinc-500 hover:text-[#EAB308] transition-colors"
+                    >
+                      View →
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

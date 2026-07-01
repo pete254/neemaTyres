@@ -13,7 +13,7 @@ async function getDashboardData() {
   const todayStart = new Date(todayStr + "T00:00:00Z");
   const todayEnd = new Date(todayStr + "T23:59:59Z");
 
-  const [inventory, customers, exceptions, todaySaleLines, todayPurchaseAgg] =
+  const [inventory, customers, todaySaleLines, todayPurchaseAgg] =
     await Promise.all([
       prisma.productVariant.findMany({
         select: { qtyOnHand: true, wacCost: true },
@@ -27,7 +27,6 @@ async function getDashboardData() {
           debtCollections: true,
         },
       }),
-      prisma.exceptionFlag.count({ where: { resolved: false } }),
       prisma.saleLine.findMany({
         where: { sale: { date: { gte: todayStart, lte: todayEnd } } },
         select: { qty: true, unitCostAtSale: true, lineTotal: true },
@@ -43,6 +42,7 @@ async function getDashboardData() {
       sum.plus(new Decimal(v.qtyOnHand).mul(v.wacCost.toString())),
     new Decimal(0)
   );
+  const tyresInStore = inventory.reduce((sum, v) => sum + v.qtyOnHand, 0);
 
   const debtorData = customers
     .map((c) => {
@@ -83,9 +83,9 @@ async function getDashboardData() {
 
   return {
     stockValue,
+    tyresInStore,
     activeDebtors,
     totalOwed,
-    exceptions,
     todaySales,
     todayPurchases,
     todayProfit,
@@ -96,9 +96,9 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const {
     stockValue,
+    tyresInStore,
     activeDebtors,
     totalOwed,
-    exceptions,
     todaySales,
     todayPurchases,
     todayProfit,
@@ -176,21 +176,10 @@ export default async function DashboardPage() {
           <p className="text-xl font-bold text-red-400">{fmt(totalOwed)}</p>
           <p className="text-xs text-zinc-600 mt-1">View list →</p>
         </Link>
-        <Link
-          href="/exceptions"
-          className={
-            cardBase +
-            ` hover:border-${exceptions > 0 ? "orange" : "zinc"}-400 cursor-pointer`
-          }
-        >
-          <p className="text-xs text-zinc-500 mb-1">Unresolved Flags</p>
-          <p
-            className={`text-xl font-bold ${
-              exceptions > 0 ? "text-orange-400" : "text-green-400"
-            }`}
-          >
-            {exceptions}
-          </p>
+        <Link href="/inventory" className={cardLink}>
+          <p className="text-xs text-zinc-500 mb-1">Tyres in Store</p>
+          <p className="text-xl font-bold text-green-400">{tyresInStore}</p>
+          <p className="text-xs text-zinc-600 mt-1">View inventory →</p>
         </Link>
       </div>
 

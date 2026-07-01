@@ -2,6 +2,26 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import type { PostSaleInput } from "./types";
 
+export async function deleteSale(saleId: string) {
+  return prisma.$transaction(async (tx) => {
+    const sale = await tx.sale.findUniqueOrThrow({
+      where: { id: saleId },
+      include: { lines: true },
+    });
+    // Restore inventory
+    for (const line of sale.lines) {
+      await tx.productVariant.update({
+        where: { id: line.variantId },
+        data: { qtyOnHand: { increment: line.qty } },
+      });
+    }
+    await tx.exceptionFlag.deleteMany({ where: { entityId: saleId } });
+    await tx.payment.deleteMany({ where: { saleId } });
+    await tx.saleLine.deleteMany({ where: { saleId } });
+    await tx.sale.delete({ where: { id: saleId } });
+  });
+}
+
 const PRICE_ANOMALY_MULTIPLIER = 2;
 
 export async function postSale(input: PostSaleInput) {

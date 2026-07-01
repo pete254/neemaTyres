@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
@@ -16,7 +16,8 @@ export default function NewDebtCollectionScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const bottomPadding = useBottomPadding();
-  const [customerId, setCustomerId] = useState<string | null>(null);
+  const { customerId: preselectedId } = useLocalSearchParams<{ customerId?: string }>();
+  const [customerId, setCustomerId] = useState<string | null>(preselectedId ?? null);
   const [amount, setAmount] = useState("");
   const [channel, setChannel] = useState<"CASH" | "MPESA">("CASH");
   const [date, setDate] = useState(today());
@@ -57,6 +58,17 @@ export default function NewDebtCollectionScreen() {
         </TouchableOpacity>
       ))}
 
+      {customerId && (() => {
+        const sel = debtors.find((d) => d.id === customerId);
+        if (!sel) return null;
+        return (
+          <View style={styles.debtBanner}>
+            <Text style={styles.debtBannerLabel}>Outstanding balance</Text>
+            <Text style={styles.debtBannerValue}>KES {parseFloat(sel.outstanding).toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+          </View>
+        );
+      })()}
+
       <Text style={styles.sectionLabel}>Amount (KES)</Text>
       <TextInput style={styles.input} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#555" />
 
@@ -85,6 +97,9 @@ const styles = StyleSheet.create({
   customerBtnActive: { borderColor: "#EAB308", backgroundColor: "#1C1A00" },
   customerName: { color: "#fff", fontSize: 14, fontWeight: "500" },
   outstanding: { color: "#F87171", fontSize: 12, marginTop: 2 },
+  debtBanner: { backgroundColor: "#1A0000", borderWidth: 1, borderColor: "#7F1D1D", borderRadius: 8, padding: 12, marginVertical: 8 },
+  debtBannerLabel: { color: "#F87171", fontSize: 11, marginBottom: 2 },
+  debtBannerValue: { color: "#F87171", fontSize: 20, fontWeight: "bold" },
   channelRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
   channelBtn: { flex: 1, paddingVertical: 10, borderRadius: 6, borderWidth: 1, borderColor: "#2A2A2A", alignItems: "center" },
   channelBtnActive: { backgroundColor: "#1C1A00", borderColor: "#EAB308" },

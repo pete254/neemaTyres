@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Decimal from "decimal.js";
 import { getCustomerProfile } from "@/lib/queries/customerProfile";
 import DateRangeFilter from "./DateRangeFilter";
+import ContactEditor from "./ContactEditor";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -73,6 +74,18 @@ export default async function CustomerProfilePage({
             </Link>
           </div>
         )}
+      </div>
+
+      {/* Contact details editor */}
+      <div className="mb-6">
+        <ContactEditor
+          id={customer.id}
+          phone={customer.phone}
+          email={customer.email}
+          address={customer.address}
+          town={customer.town}
+          poBox={customer.poBox}
+        />
       </div>
 
       {/* Date range filter */}

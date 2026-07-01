@@ -10,7 +10,7 @@ interface DashboardData {
   stockValue: string;
   activeDebtors: number;
   totalOwed: string;
-  exceptions: number;
+  tyresInStore: number;
   todaySales: string;
   todayPurchases: string;
   todayProfit: string;
@@ -36,7 +36,7 @@ export default function DashboardScreen() {
     { label: "Collect Debt", href: "/(app)/debt-collections/new" },
     { label: "Pay Supplier", href: "/(app)/supplier-payments/new" },
     { label: "Process Return", href: "/(app)/returns/new" },
-    { label: "Review Flags", href: "/(app)/exceptions" },
+    { label: "Exceptions", href: "/(app)/exceptions" },
   ];
 
   return (
@@ -81,10 +81,10 @@ export default function DashboardScreen() {
           <Text style={[styles.cardValue, { color: "#F87171" }]}>{fmt(data?.totalOwed ?? 0)}</Text>
         </TouchableOpacity>
         <View style={{ width: 12 }} />
-        <TouchableOpacity style={[styles.card, styles.cardLink, { flex: 1 }]} onPress={() => router.push("/(app)/exceptions")}>
-          <Text style={styles.cardLabel}>Unresolved Flags</Text>
-          <Text style={[styles.cardValue, { color: (data?.exceptions ?? 0) > 0 ? "#FB923C" : "#4ADE80" }]}>
-            {data?.exceptions ?? "—"}
+        <TouchableOpacity style={[styles.card, styles.cardLink, { flex: 1 }]} onPress={() => router.push("/(app)/inventory")}>
+          <Text style={styles.cardLabel}>Tyres in Store</Text>
+          <Text style={[styles.cardValue, { color: "#4ADE80" }]}>
+            {data?.tyresInStore ?? "—"}
           </Text>
         </TouchableOpacity>
       </View>

@@ -105,6 +105,10 @@ model Customer {
   id           String   @id @default(cuid())
   name         String   @unique
   phone        String?
+  email        String?
+  address      String?
+  town         String?
+  poBox        String?
   createdAt    DateTime @default(now())
   recordedById String
   recordedBy   User     @relation(fields: [recordedById], references: [id])
