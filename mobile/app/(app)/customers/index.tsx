@@ -1,6 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -9,11 +10,12 @@ interface Customer {
   id: string;
   name: string;
   phone: string | null;
-  totalSpend: string;
+  totalSpent: string;
 }
 
 export default function CustomersScreen() {
   const router = useRouter();
+  const { top } = useSafeAreaInsets();
   const bottomPadding = useBottomPadding();
   const { data = [], isLoading } = useQuery({
     queryKey: keys.customers,
@@ -21,7 +23,7 @@ export default function CustomersScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: top + 16 }]}>
       <TouchableOpacity style={styles.addBtn} onPress={() => router.push("/(app)/customers/new")}>
         <Text style={styles.addBtnText}>+ New Customer</Text>
       </TouchableOpacity>
@@ -34,7 +36,7 @@ export default function CustomersScreen() {
               <Text style={styles.name}>{item.name}</Text>
               {item.phone && <Text style={styles.phone}>{item.phone}</Text>}
             </View>
-            <Text style={styles.spend}>KES {parseFloat(item.totalSpend).toLocaleString()}</Text>
+            <Text style={styles.spend}>KES {parseFloat(item.totalSpent).toLocaleString()}</Text>
           </TouchableOpacity>
         )}
         ListEmptyComponent={!isLoading ? <Text style={styles.empty}>No customers</Text> : null}

@@ -1,6 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -13,6 +14,7 @@ interface Supplier {
 
 export default function SuppliersScreen() {
   const router = useRouter();
+  const { top } = useSafeAreaInsets();
   const bottomPadding = useBottomPadding();
   const { data = [], isLoading } = useQuery({
     queryKey: keys.suppliers,
@@ -20,7 +22,7 @@ export default function SuppliersScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: top + 16 }]}>
       <FlatList
         data={data}
         keyExtractor={(i) => i.id}

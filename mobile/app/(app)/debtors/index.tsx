@@ -1,6 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -14,6 +15,7 @@ interface Debtor {
 
 export default function DebtorsScreen() {
   const router = useRouter();
+  const { top } = useSafeAreaInsets();
   const bottomPadding = useBottomPadding();
   const { data = [], isLoading } = useQuery({
     queryKey: keys.debtors,
@@ -23,7 +25,7 @@ export default function DebtorsScreen() {
   const total = data.reduce((sum, d) => sum + parseFloat(d.outstanding), 0);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: top + 16 }]}>
       <View style={styles.summary}>
         <Text style={styles.summaryLabel}>Total Owed</Text>
         <Text style={styles.summaryValue}>KES {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>

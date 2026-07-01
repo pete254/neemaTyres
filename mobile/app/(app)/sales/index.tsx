@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -32,6 +33,7 @@ interface SaleDay {
 
 export default function SalesScreen() {
   const router = useRouter();
+  const { top } = useSafeAreaInsets();
   const bottomPadding = useBottomPadding();
   const [from, setFrom] = useState(today());
   const [to, setTo] = useState(today());
@@ -43,7 +45,7 @@ export default function SalesScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: top + 16 }]}>
       <View style={styles.dateRow}>
         <TextInput style={styles.dateInput} value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
         <Text style={styles.sep}>→</Text>
