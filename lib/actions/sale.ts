@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import Decimal from "decimal.js";
 import { postSale } from "@/lib/posting";
-import { upsertCustomerByName } from "./customer";
+import { upsertCustomerByName } from "@/lib/domain/customer";
 
 export async function createSale(formData: FormData) {
   const session = await auth();

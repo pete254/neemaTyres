@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-export { upsertCustomerByName } from "@/lib/domain/customer";
 
 export async function createCustomer(formData: FormData) {
   const session = await auth();
