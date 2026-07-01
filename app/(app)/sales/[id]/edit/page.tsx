@@ -44,7 +44,7 @@ export default async function EditSalePage({ params }: PageProps) {
   }));
 
   const customer: CustomerSelection = sale.customer
-    ? { type: "existing", id: sale.customer.id, name: sale.customer.name, phone: sale.customer.phone ?? "" }
+    ? { type: "existing", id: sale.customer.id, name: sale.customer.name }
     : null;
 
   const initialData: SaleFormInitialData = {
