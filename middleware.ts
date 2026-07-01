@@ -26,5 +26,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/auth|api/mobile|_next/static|_next/image|favicon.ico).*)"],
+  // Exclude ALL /api/* routes — they handle their own auth.
+  // Only page routes need the session-cookie check.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
