@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const { top, bottom } = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,17 +66,26 @@ export default function LoginScreen() {
           onChangeText={setEmail}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#555"
-          secureTextEntry
-          autoCorrect={false}
-          autoComplete="current-password"
-          value={password}
-          onChangeText={setPassword}
-          onSubmitEditing={handleLogin}
-        />
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Password"
+            placeholderTextColor="#555"
+            secureTextEntry={!showPassword}
+            autoCorrect={false}
+            autoComplete="current-password"
+            value={password}
+            onChangeText={setPassword}
+            onSubmitEditing={handleLogin}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.eyeText}>{showPassword ? "🙈" : "👁"}</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -142,6 +152,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     padding: 14,
     marginBottom: 12,
+  },
+  passwordWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1C1C1C",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  passwordInput: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 15,
+    padding: 14,
+  },
+  eyeButton: {
+    paddingHorizontal: 14,
+  },
+  eyeText: {
+    fontSize: 18,
   },
   button: {
     backgroundColor: "#EAB308",

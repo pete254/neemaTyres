@@ -1,5 +1,6 @@
 import { signIn } from "@/auth";
 import { redirect } from "next/navigation";
+import PasswordInput from "./PasswordInput";
 
 export default function LoginPage() {
   async function handleLogin(formData: FormData) {
@@ -30,12 +31,7 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="block text-sm text-zinc-300 mb-1">Password</label>
-            <input
-              name="password"
-              type="password"
-              required
-              className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white focus:outline-none focus:border-[#EAB308]"
-            />
+            <PasswordInput />
           </div>
           <button
             type="submit"
