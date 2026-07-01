@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { verifyMobileToken } from "@/app/api/mobile/_auth";
 import { runQueryAgent } from "@/lib/ai/queryAgent";
 import { parseEntry, confirmEntry } from "@/lib/ai/entryAgent";
 import type { Draft } from "@/lib/ai/types";
@@ -20,9 +21,16 @@ function looksLikeTransaction(text: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  let userId: string;
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session?.user?.id) {
+    userId = session.user.id;
+  } else {
+    try {
+      ({ userId } = await verifyMobileToken(req));
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const body = (await req.json()) as {
@@ -33,7 +41,6 @@ export async function POST(req: NextRequest) {
   };
 
   const { mode, message, sessionDrafts, action } = body;
-  const userId = session.user.id;
 
   try {
     // Confirm flow (shared by entry and smart modes)

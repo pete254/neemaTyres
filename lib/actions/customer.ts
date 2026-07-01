@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+export { upsertCustomerByName } from "@/lib/domain/customer";
 
 export async function createCustomer(formData: FormData) {
   const session = await auth();
@@ -16,7 +17,6 @@ export async function createCustomer(formData: FormData) {
 
   const existing = await prisma.customer.findUnique({ where: { name } });
   if (existing) {
-    // Update phone if provided and different
     if (phone && existing.phone !== phone) {
       await prisma.customer.update({ where: { id: existing.id }, data: { phone } });
     }
@@ -29,24 +29,4 @@ export async function createCustomer(formData: FormData) {
 
   revalidatePath("/customers");
   redirect(`/customers/${customer.id}`);
-}
-
-// Used by the sale action to upsert a walk-in customer by name
-export async function upsertCustomerByName(
-  name: string,
-  phone: string | null,
-  userId: string
-): Promise<string> {
-  const trimmed = name.trim();
-  const existing = await prisma.customer.findUnique({ where: { name: trimmed } });
-  if (existing) {
-    if (phone && existing.phone !== phone) {
-      await prisma.customer.update({ where: { id: existing.id }, data: { phone } });
-    }
-    return existing.id;
-  }
-  const created = await prisma.customer.create({
-    data: { name: trimmed, phone: phone?.trim() || null, recordedById: userId },
-  });
-  return created.id;
 }
