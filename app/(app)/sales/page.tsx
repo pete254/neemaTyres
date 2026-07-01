@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSalesBetween } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
-import { deleteSaleAction } from "@/lib/actions/sale";
+import { DeleteSaleButton } from "./DeleteSaleButton";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number) =>
@@ -96,20 +96,7 @@ export default async function SalesPage({ searchParams }: PageProps) {
                     >
                       Edit
                     </Link>
-                    <form action={deleteSaleAction}>
-                      <input type="hidden" name="saleId" value={sale.saleId} />
-                      <button
-                        type="submit"
-                        className="text-xs text-red-500 hover:text-red-300 border border-red-900 rounded px-2 py-1 transition-colors"
-                        onClick={(e) => {
-                          if (!confirm("Delete this sale? Stock will be restored.")) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </form>
+                    <DeleteSaleButton saleId={sale.saleId} />
                   </div>
                 </div>
 
