@@ -40,7 +40,7 @@ export async function updateCustomerDetails(formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   if (name) {
     const conflict = await prisma.customer.findUnique({ where: { name } });
-    if (conflict && conflict.id !== id) throw new Error("A customer named "" + name + "" already exists.");
+    if (conflict && conflict.id !== id) throw new Error(`A customer named "${name}" already exists.`);
     await prisma.customer.update({ where: { id }, data: { name } });
   }
 
