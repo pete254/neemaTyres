@@ -1,0 +1,15 @@
+export const keys = {
+  dashboard: ["dashboard"] as const,
+  sales: (from: string, to: string) => ["sales", from, to] as const,
+  purchases: (from: string, to: string) => ["purchases", from, to] as const,
+  customers: ["customers"] as const,
+  customer: (id: string, from?: string, to?: string) => ["customer", id, from, to] as const,
+  debtors: ["debtors"] as const,
+  debtor: (id: string) => ["debtor", id] as const,
+  suppliers: ["suppliers"] as const,
+  supplier: (id: string) => ["supplier", id] as const,
+  inventory: (search?: string, position?: string) => ["inventory", search, position] as const,
+  variants: ["variants"] as const,
+  reports: (from: string, to: string) => ["reports", from, to] as const,
+  exceptions: (all: boolean) => ["exceptions", all] as const,
+};
