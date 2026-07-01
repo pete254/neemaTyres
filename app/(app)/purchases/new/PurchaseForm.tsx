@@ -3,6 +3,13 @@
 import { useState, useTransition } from "react";
 import { createPurchase } from "@/lib/actions/purchase";
 
+export interface PurchaseFormInitialData {
+  date: string;
+  supplierId: string;
+  terms: "CASH" | "CREDIT" | "FREE";
+  lines: { bucket: string; variantId: string; qty: string; unitCost: string }[];
+}
+
 interface Variant {
   id: string;
   sizeBucket: string;
@@ -47,16 +54,22 @@ function computeWacPreview(
 export default function PurchaseForm({
   variants,
   suppliers,
+  initialData,
+  submitAction,
+  submitLabel,
 }: {
   variants: Variant[];
   suppliers: Supplier[];
+  initialData?: PurchaseFormInitialData;
+  submitAction?: (fd: FormData) => Promise<void>;
+  submitLabel?: string;
 }) {
-  const [lines, setLines] = useState<PurchaseLine[]>([
-    { bucket: "", variantId: "", qty: "1", unitCost: "" },
-  ]);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [supplierId, setSupplierId] = useState("");
-  const [terms, setTerms] = useState<"CASH" | "CREDIT" | "FREE">("CASH");
+  const [lines, setLines] = useState<PurchaseLine[]>(
+    initialData?.lines ?? [{ bucket: "", variantId: "", qty: "1", unitCost: "" }]
+  );
+  const [date, setDate] = useState(initialData?.date ?? new Date().toISOString().slice(0, 10));
+  const [supplierId, setSupplierId] = useState(initialData?.supplierId ?? "");
+  const [terms, setTerms] = useState<"CASH" | "CREDIT" | "FREE">(initialData?.terms ?? "CASH");
   const [isPending, startTransition] = useTransition();
 
   // All buckets that have at least one known variant (any stock level)
@@ -95,7 +108,7 @@ export default function PurchaseForm({
       JSON.stringify(lines.map(({ bucket: _b, ...rest }) => rest))
     );
     startTransition(async () => {
-      await createPurchase(fd);
+      await (submitAction ?? createPurchase)(fd);
     });
   };
 
@@ -300,7 +313,7 @@ export default function PurchaseForm({
         disabled={isPending || lines.some((l) => !l.variantId)}
         className="bg-[#EAB308] hover:bg-[#CA8A04] disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold rounded px-6 py-2.5 transition-colors"
       >
-        {isPending ? "Saving..." : "Record Purchase"}
+        {isPending ? "Saving..." : (submitLabel ?? "Record Purchase")}
       </button>
     </form>
   );

@@ -4,6 +4,59 @@ import { computeWac } from "./wac";
 import { appendLedgerEntry } from "./ledger";
 import type { PostPurchaseInput } from "./types";
 
+export async function deletePurchase(purchaseId: string) {
+  return prisma.$transaction(async (tx) => {
+    const purchase = await tx.purchase.findUniqueOrThrow({
+      where: { id: purchaseId },
+      include: { lines: true },
+    });
+
+    let totalCost = new Decimal(0);
+
+    for (const line of purchase.lines) {
+      const variant = await tx.productVariant.findUniqueOrThrow({
+        where: { id: line.variantId },
+        select: { qtyOnHand: true, wacCost: true },
+      });
+
+      const lineUnitCost = new Decimal(line.unitCost.toString());
+      totalCost = totalCost.plus(new Decimal(line.lineTotal.toString()));
+
+      const restoredQty = variant.qtyOnHand - line.qty;
+      let restoredWac: Decimal;
+      if (restoredQty <= 0) {
+        restoredWac = new Decimal(0);
+      } else {
+        restoredWac = new Decimal(variant.qtyOnHand)
+          .mul(new Decimal(variant.wacCost.toString()))
+          .minus(new Decimal(line.qty).mul(lineUnitCost))
+          .div(restoredQty)
+          .toDecimalPlaces(2);
+        if (restoredWac.lt(0)) restoredWac = new Decimal(0);
+      }
+
+      await tx.productVariant.update({
+        where: { id: line.variantId },
+        data: { qtyOnHand: restoredQty, wacCost: restoredWac },
+      });
+    }
+
+    if (purchase.terms === "CREDIT" && purchase.supplierId) {
+      await appendLedgerEntry(
+        tx,
+        purchase.supplierId,
+        purchase.date,
+        `Reversal of purchase ${purchaseId}`,
+        new Decimal(0),
+        totalCost
+      );
+    }
+
+    await tx.purchaseLine.deleteMany({ where: { purchaseId } });
+    await tx.purchase.delete({ where: { id: purchaseId } });
+  });
+}
+
 export async function postPurchase(input: PostPurchaseInput) {
   return prisma.$transaction(async (tx) => {
     const purchase = await tx.purchase.create({

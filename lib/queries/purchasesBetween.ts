@@ -11,11 +11,27 @@ export interface PurchaseLineItem {
   lineTotal: Decimal;
 }
 
+export interface PurchaseGroupLine {
+  variantLabel: string;
+  qty: number;
+  unitCost: Decimal;
+  lineTotal: Decimal;
+}
+
+export interface PurchaseGroup {
+  purchaseId: string;
+  supplierName: string;
+  terms: string;
+  total: Decimal;
+  lines: PurchaseGroupLine[];
+}
+
 export interface PurchaseDay {
   date: string;
   purchasesCount: number;
   totalCost: Decimal;
   lines: PurchaseLineItem[];
+  purchaseGroups: PurchaseGroup[];
 }
 
 export interface PurchasesBetweenResult {
@@ -67,7 +83,24 @@ export async function getPurchasesBetween(
         }))
       );
 
-      return { date, purchasesCount: dayPurchases.length, totalCost: dayTotal, lines };
+      const purchaseGroups: PurchaseGroup[] = dayPurchases.map((purchase) => {
+        const groupLines = purchase.lines.map((line) => ({
+          variantLabel: `${line.variant.sizeCanonical} ${line.variant.brand.name}${line.variant.subLabel ? ` ${line.variant.subLabel}` : ""}`.trim(),
+          qty: line.qty,
+          unitCost: new Decimal(line.unitCost.toString()),
+          lineTotal: new Decimal(line.lineTotal.toString()),
+        }));
+        const total = groupLines.reduce((s, l) => s.plus(l.lineTotal), new Decimal(0));
+        return {
+          purchaseId: purchase.id,
+          supplierName: purchase.supplier?.name ?? "No supplier",
+          terms: purchase.terms,
+          total,
+          lines: groupLines,
+        };
+      });
+
+      return { date, purchasesCount: dayPurchases.length, totalCost: dayTotal, lines, purchaseGroups };
     }
   );
 

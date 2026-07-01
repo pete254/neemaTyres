@@ -37,6 +37,13 @@ export async function updateCustomerDetails(formData: FormData) {
   const id = formData.get("id") as string;
   if (!id) throw new Error("id required");
 
+  const name = (formData.get("name") as string)?.trim();
+  if (name) {
+    const conflict = await prisma.customer.findUnique({ where: { name } });
+    if (conflict && conflict.id !== id) throw new Error("A customer named "" + name + "" already exists.");
+    await prisma.customer.update({ where: { id }, data: { name } });
+  }
+
   await prisma.customer.update({
     where: { id },
     data: {
@@ -49,5 +56,7 @@ export async function updateCustomerDetails(formData: FormData) {
   });
 
   revalidatePath(`/customers/${id}`);
+  revalidatePath(`/customers`);
   revalidatePath(`/debtors/${id}`);
+  revalidatePath(`/debtors`);
 }

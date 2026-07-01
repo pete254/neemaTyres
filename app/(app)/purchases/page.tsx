@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPurchasesBetween } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
+import { DeletePurchaseButton } from "./DeletePurchaseButton";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number) =>
@@ -59,52 +60,64 @@ export default async function PurchasesPage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* Daily breakdown with lines */}
+      {/* Per-day, per-purchase breakdown */}
       {report.days.map((day) => (
         <div key={day.date} className="mb-8">
-          <div className="flex items-center justify-between mb-2 py-2 border-b border-[#2A2A2A]">
+          <div className="flex items-center justify-between mb-3 py-2 border-b border-[#2A2A2A]">
             <h3 className="text-sm font-semibold text-zinc-300">{day.date}</h3>
             <span className="text-sm text-zinc-500">
               {day.purchasesCount} order{day.purchasesCount !== 1 ? "s" : ""}{" "}
               &middot; {fmt(day.totalCost)}
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-zinc-500 text-left">
-                  <th className="pb-2 pr-4 font-normal">Item</th>
-                  <th className="pb-2 pr-4 font-normal">Supplier</th>
-                  <th className="pb-2 pr-4 text-right font-normal">Qty</th>
-                  <th className="pb-2 pr-4 text-right font-normal">
-                    Unit Cost
-                  </th>
-                  <th className="pb-2 text-right font-normal">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {day.lines.map((line, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-[#1C1C1C] hover:bg-[#111]"
-                  >
-                    <td className="py-2 pr-4 text-white">{line.variantLabel}</td>
-                    <td className="py-2 pr-4 text-zinc-400">
-                      {line.supplierName}
-                    </td>
-                    <td className="py-2 pr-4 text-right text-zinc-300">
-                      {line.qty}
-                    </td>
-                    <td className="py-2 pr-4 text-right text-zinc-300">
-                      {fmt(line.unitCost)}
-                    </td>
-                    <td className="py-2 text-right font-semibold text-white">
-                      {fmt(line.lineTotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="space-y-4">
+            {day.purchaseGroups.map((purchase) => (
+              <div
+                key={purchase.purchaseId}
+                className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg p-4"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="text-sm font-medium text-white">
+                      {purchase.supplierName}
+                    </span>
+                    <span className="ml-2 text-xs text-zinc-500">
+                      {purchase.terms}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-blue-400">
+                      {fmt(purchase.total)}
+                    </span>
+                    <Link
+                      href={`/purchases/${purchase.purchaseId}/edit`}
+                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
+                    >
+                      Edit
+                    </Link>
+                    <DeletePurchaseButton purchaseId={purchase.purchaseId} />
+                  </div>
+                </div>
+
+                <table className="w-full text-sm">
+                  <tbody>
+                    {purchase.lines.map((line, i) => (
+                      <tr key={i} className="border-t border-[#1C1C1C]">
+                        <td className="py-1.5 pr-4 text-zinc-300">{line.variantLabel}</td>
+                        <td className="py-1.5 pr-4 text-right text-zinc-500">×{line.qty}</td>
+                        <td className="py-1.5 pr-4 text-right text-zinc-400">
+                          {fmt(line.unitCost)}
+                        </td>
+                        <td className="py-1.5 text-right text-zinc-200 font-medium">
+                          {fmt(line.lineTotal)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         </div>
       ))}

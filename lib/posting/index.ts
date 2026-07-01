@@ -1,4 +1,4 @@
-export { postPurchase } from "./purchase";
+export { postPurchase, deletePurchase } from "./purchase";
 export { postSale, deleteSale } from "./sale";
 export { postDebtCollection, getCustomerReceivable } from "./debtCollection";
 export { postSupplierPayment } from "./supplierPayment";

@@ -80,6 +80,7 @@ export default async function CustomerProfilePage({
       <div className="mb-6">
         <ContactEditor
           id={customer.id}
+          name={customer.name}
           phone={customer.phone}
           email={customer.email}
           address={customer.address}
