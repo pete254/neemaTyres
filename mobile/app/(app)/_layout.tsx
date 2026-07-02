@@ -18,13 +18,13 @@ export default function AppLayout() {
       <Drawer.Screen name="purchases" options={{ title: "Purchases", headerShown: false }} />
       <Drawer.Screen name="customers" options={{ title: "Customers", headerShown: false }} />
       <Drawer.Screen name="debtors" options={{ title: "Debtors", headerShown: false }} />
-      <Drawer.Screen name="debt-collections" options={{ title: "Debt Collection" }} />
-      <Drawer.Screen name="supplier-payments" options={{ title: "Supplier Payment" }} />
-      <Drawer.Screen name="returns" options={{ title: "New Return" }} />
+      <Drawer.Screen name="debt-collections/new" options={{ title: "Debt Collection" }} />
+      <Drawer.Screen name="supplier-payments/new" options={{ title: "Supplier Payment" }} />
+      <Drawer.Screen name="returns/new" options={{ title: "New Return" }} />
       <Drawer.Screen name="suppliers" options={{ title: "Suppliers", headerShown: false }} />
-      <Drawer.Screen name="inventory" options={{ title: "Inventory" }} />
-      <Drawer.Screen name="reports" options={{ title: "Reports" }} />
-      <Drawer.Screen name="history" options={{ title: "History" }} />
+      <Drawer.Screen name="inventory/index" options={{ title: "Inventory" }} />
+      <Drawer.Screen name="reports/index" options={{ title: "Reports" }} />
+      <Drawer.Screen name="history/index" options={{ title: "History" }} />
     </Drawer>
   );
 }
