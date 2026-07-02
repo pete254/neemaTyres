@@ -12,8 +12,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const [sale, shop] = await Promise.all([getSaleById(id), getShopInfo()]);
   if (!sale) return notFound();
 
+  const data = {
+    ...sale,
+    totalAmount: sale.totalAmount.toString(),
+    lines: sale.lines.map((l) => ({ ...l, unitPrice: l.unitPrice.toString(), lineTotal: l.lineTotal.toString() })),
+    payments: sale.payments.map((p) => ({ ...p, amount: p.amount.toString() })),
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buffer = await renderToBuffer(createElement(DeliveryNotePDF, { sale, shop }) as any);
+  const buffer = await renderToBuffer(createElement(DeliveryNotePDF, { sale: data, shop }) as any);
   const docNo = sale.id.slice(-8).toUpperCase();
 
   return new Response(new Uint8Array(buffer), {
