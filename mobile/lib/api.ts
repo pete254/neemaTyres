@@ -17,8 +17,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `HTTP ${res.status}`);
+    const text = await res.text().catch(() => "");
+    let body: any = {};
+    try { body = JSON.parse(text); } catch {}
+    throw new Error(body.error ?? `HTTP ${res.status} at ${BASE}${path}`);
   }
   return res.json();
 }
