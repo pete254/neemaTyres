@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/sales", label: "Sales" },
   { href: "/purchases/new", label: "New Purchase" },
   { href: "/purchases", label: "Purchases" },
+  { href: "/quotations/new", label: "New Quotation" },
   { href: "/debt-collections/new", label: "Debt Collection" },
   { href: "/supplier-payments/new", label: "Supplier Payment" },
   { href: "/returns/new", label: "Returns" },
@@ -18,9 +19,8 @@ const navLinks = [
   { href: "/debtors", label: "Debtors" },
   { href: "/suppliers", label: "Suppliers" },
   { href: "/reports", label: "Reports" },
-  { href: "/exceptions", label: "Exceptions" },
   { href: "/history", label: "History" },
-  { href: "/ai", label: "AI Assistant" },
+  { href: "/settings", label: "Settings" },
 ];
 
 interface SidebarProps {

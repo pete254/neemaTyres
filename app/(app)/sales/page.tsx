@@ -86,10 +86,22 @@ export default async function SalesPage({ searchParams }: PageProps) {
                     </span>
                     <span className="ml-2 text-xs text-zinc-500">{sale.channels}</span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-[#EAB308]">
                       {fmt(sale.total)}
                     </span>
+                    <Link
+                      href={`/sales/${sale.saleId}/invoice`}
+                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
+                    >
+                      Invoice
+                    </Link>
+                    <Link
+                      href={`/sales/${sale.saleId}/delivery-note`}
+                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
+                    >
+                      Delivery
+                    </Link>
                     <Link
                       href={`/sales/${sale.saleId}/edit`}
                       className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"

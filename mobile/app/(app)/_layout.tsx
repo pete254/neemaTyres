@@ -24,9 +24,7 @@ export default function AppLayout() {
       <Drawer.Screen name="suppliers" options={{ title: "Suppliers", headerShown: false }} />
       <Drawer.Screen name="inventory" options={{ title: "Inventory" }} />
       <Drawer.Screen name="reports" options={{ title: "Reports" }} />
-      <Drawer.Screen name="exceptions" options={{ title: "Exceptions" }} />
       <Drawer.Screen name="history" options={{ title: "History" }} />
-      <Drawer.Screen name="ai" options={{ title: "AI Assistant" }} />
     </Drawer>
   );
 }

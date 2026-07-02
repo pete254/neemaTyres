@@ -116,6 +116,7 @@ model Customer {
   sales                 Sale[]
   debtCollections       DebtCollection[]
   openingBalanceEntries OpeningBalanceEntry[]
+  quotations            Quotation[]
 }
 
 model Supplier {
@@ -148,6 +149,7 @@ model User {
   recordedOpeningBalances  OpeningBalanceEntry[]
   resolvedFlags            ExceptionFlag[]
   auditLogs                AuditLog[]
+  quotations               Quotation[]
 }
 
 // ─── Transactions (immutable; reverse with a counter-entry, never delete) ────
@@ -338,6 +340,46 @@ model LedgerEntry {
   runningBalance Decimal  @db.Decimal(14, 2)
 
   @@index([supplierId, date])
+}
+
+// Singleton shop configuration record.
+model ShopInfo {
+  id        String   @id @default("main")
+  name      String   @default("")
+  address   String?
+  town      String?
+  county    String?
+  country   String   @default("Kenya")
+  poBox     String?
+  email     String?
+  phone     String?
+  terms     String[]
+  updatedAt DateTime @updatedAt
+}
+
+model Quotation {
+  id          String    @id @default(cuid())
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  date        DateTime
+  validDays   Int       @default(14)
+  note        String?
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  lines QuotationLine[]
+}
+
+model QuotationLine {
+  id          String    @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  description String
+  qty         Int
+  unitPrice   Decimal   @db.Decimal(14, 2)
+  lineTotal   Decimal   @db.Decimal(14, 2)
+  sortOrder   Int       @default(0)
 }
 
 // Immutable record of every user-initiated write action.
