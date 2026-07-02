@@ -35,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const buffer = await renderToBuffer(createElement(QuotationPDF, { quotation: data, shop }) as any);
   const quotNo = quotation.id.slice(-8).toUpperCase();
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="quotation-${quotNo}.pdf"`,

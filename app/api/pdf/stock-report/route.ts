@@ -25,7 +25,7 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(createElement(StockReportPDF, { variants, shop, printDate }) as any);
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="stock-report-${new Date().toISOString().slice(0, 10)}.pdf"`,

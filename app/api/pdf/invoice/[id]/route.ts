@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const buffer = await renderToBuffer(createElement(InvoicePDF, { sale, shop }) as any);
   const invoiceNo = sale.id.slice(-8).toUpperCase();
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="invoice-${invoiceNo}.pdf"`,
