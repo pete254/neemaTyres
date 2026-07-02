@@ -9,28 +9,32 @@ interface Variant {
   sizeBucket: string;
   sizeCanonical: string;
   position: string;
-  subLabel: string | null;
-  patternCode: string | null;
   qtyOnHand: number;
   wacCost: { toString(): string };
-  referenceSellPrice: { toString(): string } | null;
   brand: { name: string };
 }
 
+// 7 columns (removed: sub, pattern, sell ref) — widths sum to 100%
+const COL = {
+  size:  { width: "10%" },
+  name:  { width: "22%" },
+  brand: { width: "22%" },
+  pos:   { width: "10%" },
+  qty:   { width: "10%" },
+  wac:   { width: "14%" },
+  value: { width: "12%" },
+};
+
 const ls = StyleSheet.create({
   page: { ...base.page, paddingHorizontal: 24, paddingTop: 30 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", borderBottomWidth: 2, borderBottomColor: PURPLE, paddingBottom: 10, marginBottom: 14 },
-  col: {
-    size:   { width: "8%"  },
-    name:   { width: "12%" },
-    brand:  { width: "14%" },
-    pos:    { width: "8%"  },
-    sub:    { width: "9%"  },
-    pattern:{ width: "10%" },
-    qty:    { width: "7%"  },
-    wac:    { width: "13%" },
-    ref:    { width: "11%" },
-    value:  { width: "8%"  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    borderBottomWidth: 2,
+    borderBottomColor: PURPLE,
+    paddingBottom: 10,
+    marginBottom: 14,
   },
 });
 
@@ -41,22 +45,10 @@ export function StockReportPDF({ variants, shop, printDate }: { variants: Varian
     new Decimal(0)
   );
 
-  const COLS = [
-    { key: "size",    label: "Bucket", style: ls.col.size,    align: "left"  as const },
-    { key: "name",    label: "Size",   style: ls.col.name,    align: "left"  as const },
-    { key: "brand",   label: "Brand",  style: ls.col.brand,   align: "left"  as const },
-    { key: "pos",     label: "Pos",    style: ls.col.pos,     align: "left"  as const },
-    { key: "sub",     label: "Sub",    style: ls.col.sub,     align: "left"  as const },
-    { key: "pattern", label: "Pattern",style: ls.col.pattern,  align: "left"  as const },
-    { key: "qty",     label: "Qty",    style: ls.col.qty,     align: "right" as const },
-    { key: "wac",     label: "WAC",    style: ls.col.wac,     align: "right" as const },
-    { key: "ref",     label: "Sell Ref",style: ls.col.ref,    align: "right" as const },
-    { key: "value",   label: "Value@WAC", style: ls.col.value, align: "right" as const },
-  ];
-
   return (
     <Document title="Stock Report">
       <Page size="A4" orientation="landscape" style={ls.page}>
+
         {/* Header */}
         <View style={ls.header}>
           <View>
@@ -75,12 +67,14 @@ export function StockReportPDF({ variants, shop, printDate }: { variants: Varian
         </View>
 
         {/* Table header */}
-        <View style={[base.tableHeader, { paddingHorizontal: 2 }]}>
-          {COLS.map((c) => (
-            <Text key={c.key} style={[base.tableHeaderCell, c.style, { textAlign: c.align, fontSize: 7 }]}>
-              {c.label}
-            </Text>
-          ))}
+        <View style={[base.tableHeader, { paddingHorizontal: 4 }]}>
+          <Text style={[base.tableHeaderCell, COL.size]}>Bucket</Text>
+          <Text style={[base.tableHeaderCell, COL.name]}>Size</Text>
+          <Text style={[base.tableHeaderCell, COL.brand]}>Brand</Text>
+          <Text style={[base.tableHeaderCell, COL.pos]}>Position</Text>
+          <Text style={[base.tableHeaderCell, COL.qty, { textAlign: "right" }]}>Qty</Text>
+          <Text style={[base.tableHeaderCell, COL.wac, { textAlign: "right" }]}>WAC Cost</Text>
+          <Text style={[base.tableHeaderCell, COL.value, { textAlign: "right" }]}>Value @ WAC</Text>
         </View>
 
         {/* Rows */}
@@ -90,29 +84,32 @@ export function StockReportPDF({ variants, shop, printDate }: { variants: Varian
           const rowStyle = neg ? { backgroundColor: "#FEF2F2" } : i % 2 === 1 ? { backgroundColor: LIGHT } : {};
           const textColor = neg ? RED : "#111827";
           const grayColor = neg ? RED : GRAY;
+
           return (
-            <View key={v.id} style={[base.tableRow, rowStyle, { paddingHorizontal: 2, paddingVertical: 4 }]}>
-              <Text style={[base.tableCell, ls.col.size,    { color: textColor, fontFamily: "Helvetica-Bold", fontSize: 7 }]}>{v.sizeBucket}</Text>
-              <Text style={[base.tableCell, ls.col.name,    { color: textColor, fontSize: 7 }]}>{v.sizeCanonical}</Text>
-              <Text style={[base.tableCell, ls.col.brand,   { color: textColor, fontSize: 7 }]}>{v.brand.name}</Text>
-              <Text style={[base.tableCell, ls.col.pos,     { color: grayColor, fontSize: 7 }]}>{v.position}</Text>
-              <Text style={[base.tableCell, ls.col.sub,     { color: grayColor, fontSize: 7 }]}>{v.subLabel ?? "—"}</Text>
-              <Text style={[base.tableCell, ls.col.pattern, { color: grayColor, fontSize: 7 }]}>{v.patternCode ?? "—"}</Text>
-              <Text style={[base.tableCell, ls.col.qty,     { color: textColor, textAlign: "right", fontFamily: "Helvetica-Bold", fontSize: 7 }]}>{v.qtyOnHand}</Text>
-              <Text style={[base.tableCell, ls.col.wac,     { color: grayColor, textAlign: "right", fontSize: 7 }]}>{fmt(v.wacCost.toString())}</Text>
-              <Text style={[base.tableCell, ls.col.ref,     { color: grayColor, textAlign: "right", fontSize: 7 }]}>{v.referenceSellPrice ? fmt(v.referenceSellPrice.toString()) : "—"}</Text>
-              <Text style={[base.tableCell, ls.col.value,   { color: textColor, textAlign: "right", fontSize: 7 }]}>{fmt(value.toString())}</Text>
+            <View key={v.id} style={[base.tableRow, rowStyle, { paddingHorizontal: 4, paddingVertical: 5 }]}>
+              <Text style={[base.tableCell, COL.size,  { color: textColor, fontFamily: "Helvetica-Bold" }]}>{v.sizeBucket}</Text>
+              <Text style={[base.tableCell, COL.name,  { color: textColor }]}>{v.sizeCanonical}</Text>
+              <Text style={[base.tableCell, COL.brand, { color: textColor }]}>{v.brand.name}</Text>
+              <Text style={[base.tableCell, COL.pos,   { color: grayColor }]}>{v.position}</Text>
+              <Text style={[base.tableCell, COL.qty,   { color: textColor, textAlign: "right", fontFamily: "Helvetica-Bold" }]}>{v.qtyOnHand}</Text>
+              <Text style={[base.tableCell, COL.wac,   { color: grayColor, textAlign: "right" }]}>{fmt(v.wacCost.toString())}</Text>
+              <Text style={[base.tableCell, COL.value, { color: textColor, textAlign: "right" }]}>{fmt(value.toString())}</Text>
             </View>
           );
         })}
 
         {/* Totals row */}
-        <View style={{ flexDirection: "row", borderTopWidth: 1.5, borderTopColor: PURPLE, paddingTop: 5, paddingHorizontal: 2, marginTop: 2 }}>
-          <Text style={{ fontSize: 8, color: GRAY, width: "62%", fontFamily: "Helvetica-Bold" }}>{variants.length} variants</Text>
-          <Text style={{ fontSize: 8, color: "#111827", width: "7%",  textAlign: "right", fontFamily: "Helvetica-Bold" }}>{totalQty}</Text>
-          <Text style={{ width: "11%" }} />
-          <Text style={{ width: "11%" }} />
-          <Text style={{ fontSize: 8, color: PURPLE, width: "8%",  textAlign: "right", fontFamily: "Helvetica-Bold" }}>{fmt(totalValue.toString())}</Text>
+        <View style={{ flexDirection: "row", borderTopWidth: 1.5, borderTopColor: PURPLE, paddingTop: 6, paddingHorizontal: 4, marginTop: 2 }}>
+          <Text style={{ fontSize: 8, color: GRAY, fontFamily: "Helvetica-Bold", width: "64%" }}>
+            {variants.length} variant{variants.length !== 1 ? "s" : ""}
+          </Text>
+          <Text style={{ fontSize: 8, color: "#111827", fontFamily: "Helvetica-Bold", width: "10%", textAlign: "right" }}>
+            {totalQty}
+          </Text>
+          <Text style={{ width: "14%" }} />
+          <Text style={{ fontSize: 8, color: PURPLE, fontFamily: "Helvetica-Bold", width: "12%", textAlign: "right" }}>
+            {fmt(totalValue.toString())}
+          </Text>
         </View>
 
         {/* Footer */}
