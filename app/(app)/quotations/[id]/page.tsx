@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getShopInfo } from "@/lib/shopInfo";
 import { toWords } from "@/lib/numberToWords";
-import PrintButton from "@/components/PrintButton";
 import Decimal from "decimal.js";
 
 export default async function QuotationPrintPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,7 +32,13 @@ export default async function QuotationPrintPage({ params }: { params: Promise<{
     <div className="min-h-screen bg-white text-black p-8 max-w-4xl mx-auto">
       {/* Screen-only controls */}
       <div className="print:hidden flex gap-3 mb-6">
-        <PrintButton label="Print / Save PDF" />
+        <a
+          href={`/api/pdf/quotation/${id}`}
+          target="_blank"
+          className="bg-[#4B0082] hover:bg-[#3a006b] text-white font-semibold rounded px-4 py-2 text-sm transition-colors"
+        >
+          ↓ Download Quotation PDF
+        </a>
         <a href="/quotations/new" className="text-sm text-gray-500 hover:text-black py-2">+ New Quotation</a>
       </div>
 

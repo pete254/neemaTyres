@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getInventory } from "@/lib/queries";
-import { getShopInfo } from "@/lib/shopInfo";
-import { PrintButton } from "@/components/PrintButton";
+
 import Decimal from "decimal.js";
 
 const BUCKET_ORDER = ["22.5", "20", "19.5", "17.5", "16", "15", "14", "13"];
@@ -19,10 +18,7 @@ interface PageProps {
 
 export default async function InventoryPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const [raw, shop] = await Promise.all([
-    getInventory({ search: params.search, position: params.position }),
-    getShopInfo(),
-  ]);
+  const raw = await getInventory({ search: params.search, position: params.position });
 
   const variants = [...raw].sort((a, b) => {
     const bd = bucketRank(a.sizeBucket) - bucketRank(b.sizeBucket);
@@ -37,10 +33,6 @@ export default async function InventoryPage({ searchParams }: PageProps) {
     (s, v) => s.plus(new Decimal(v.qtyOnHand).mul(v.wacCost.toString())),
     new Decimal(0)
   );
-  const printDate = new Date().toLocaleDateString("en-KE", {
-    day: "numeric", month: "long", year: "numeric",
-  });
-
   return (
     <div className="p-6">
       {/* Screen header */}
@@ -54,34 +46,17 @@ export default async function InventoryPage({ searchParams }: PageProps) {
           >
             + New Tyre Type
           </Link>
-          <PrintButton
+          <a
+            href="/api/pdf/stock-report"
+            target="_blank"
             className="bg-[#4B0082] hover:bg-[#3a006b] text-white font-semibold rounded px-4 py-2 text-sm transition-colors"
           >
-            🖨 Print Stock Report
-          </PrintButton>
+            ↓ Stock Report PDF
+          </a>
         </div>
       </div>
 
-      {/* Print-only header */}
-      <div className="hidden print:block mb-6">
-        <div className="flex justify-between items-start border-b-2 border-black pb-4">
-          <div>
-            {shop.name
-              ? <p className="text-xl font-bold text-black">{shop.name}</p>
-              : <p className="text-sm text-gray-400 italic">Shop name not configured</p>
-            }
-            {shop.address && <p className="text-sm text-gray-600">{shop.address}</p>}
-            {shop.town && <p className="text-sm text-gray-600">{shop.town}{shop.county ? `, ${shop.county}` : ""}</p>}
-            {shop.phone && <p className="text-sm text-gray-600">{shop.phone}</p>}
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-black uppercase tracking-wide">Stock Report</p>
-            <p className="text-sm text-gray-500 mt-1">As at {printDate}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Search / filter — hidden on print */}
+      {/* Search / filter */}
       <form className="mb-4 flex gap-3 print:hidden">
         <input
           name="search"
@@ -180,11 +155,6 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         )}
       </div>
 
-      {/* Print footer */}
-      <div className="hidden print:block mt-8 text-center text-xs text-gray-400 border-t border-gray-200 pt-4">
-        {shop.name} · Stock Report · {printDate}
-        {shop.phone && ` · ${shop.phone}`}
-      </div>
     </div>
   );
 }

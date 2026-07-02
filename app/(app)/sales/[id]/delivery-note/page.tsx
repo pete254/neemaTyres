@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getSaleById } from "@/lib/queries/saleById";
 import { getShopInfo } from "@/lib/shopInfo";
-import PrintButton from "@/components/PrintButton";
 
 export default async function DeliveryNotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,7 +13,13 @@ export default async function DeliveryNotePage({ params }: { params: Promise<{ i
     <div className="min-h-screen bg-white text-black p-8 max-w-3xl mx-auto font-sans">
       {/* Screen-only controls */}
       <div className="print:hidden flex gap-3 mb-6">
-        <PrintButton />
+        <a
+          href={`/api/pdf/delivery-note/${id}`}
+          target="_blank"
+          className="bg-[#4B0082] hover:bg-[#3a006b] text-white font-semibold rounded px-4 py-2 text-sm transition-colors"
+        >
+          ↓ Download Delivery Note PDF
+        </a>
         <a href="/sales" className="text-sm text-gray-500 hover:text-black py-2">← Back to Sales</a>
       </div>
 

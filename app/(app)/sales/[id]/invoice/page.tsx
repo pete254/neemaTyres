@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getSaleById } from "@/lib/queries/saleById";
 import { getShopInfo } from "@/lib/shopInfo";
 import { toWords } from "@/lib/numberToWords";
-import PrintButton from "@/components/PrintButton";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(n);
@@ -19,7 +18,13 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     <div className="min-h-screen bg-white text-black p-8 max-w-3xl mx-auto font-sans">
       {/* Screen-only controls */}
       <div className="print:hidden flex gap-3 mb-6">
-        <PrintButton />
+        <a
+          href={`/api/pdf/invoice/${id}`}
+          target="_blank"
+          className="bg-[#4B0082] hover:bg-[#3a006b] text-white font-semibold rounded px-4 py-2 text-sm transition-colors"
+        >
+          ↓ Download Invoice PDF
+        </a>
         <a href="/sales" className="text-sm text-gray-500 hover:text-black py-2">← Back to Sales</a>
       </div>
 
