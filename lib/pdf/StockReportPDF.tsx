@@ -101,7 +101,7 @@ export function StockReportPDF({ variants, shop, printDate }: { variants: Varian
               <Text style={[base.tableCell, ls.col.qty,     { color: textColor, textAlign: "right", fontFamily: "Helvetica-Bold", fontSize: 7 }]}>{v.qtyOnHand}</Text>
               <Text style={[base.tableCell, ls.col.wac,     { color: grayColor, textAlign: "right", fontSize: 7 }]}>{fmt(v.wacCost.toString())}</Text>
               <Text style={[base.tableCell, ls.col.ref,     { color: grayColor, textAlign: "right", fontSize: 7 }]}>{v.referenceSellPrice ? fmt(v.referenceSellPrice.toString()) : "—"}</Text>
-              <Text style={[base.tableCell, ls.col.value,   { color: textColor, textAlign: "right", fontSize: 7 }]}>{fmt(value)}</Text>
+              <Text style={[base.tableCell, ls.col.value,   { color: textColor, textAlign: "right", fontSize: 7 }]}>{fmt(value.toString())}</Text>
             </View>
           );
         })}
@@ -112,7 +112,7 @@ export function StockReportPDF({ variants, shop, printDate }: { variants: Varian
           <Text style={{ fontSize: 8, color: "#111827", width: "7%",  textAlign: "right", fontFamily: "Helvetica-Bold" }}>{totalQty}</Text>
           <Text style={{ width: "11%" }} />
           <Text style={{ width: "11%" }} />
-          <Text style={{ fontSize: 8, color: PURPLE, width: "8%",  textAlign: "right", fontFamily: "Helvetica-Bold" }}>{fmt(totalValue)}</Text>
+          <Text style={{ fontSize: 8, color: PURPLE, width: "8%",  textAlign: "right", fontFamily: "Helvetica-Bold" }}>{fmt(totalValue.toString())}</Text>
         </View>
 
         {/* Footer */}
