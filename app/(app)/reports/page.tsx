@@ -1,6 +1,6 @@
 import { getSalesBetween, getReportSummary } from "@/lib/queries";
-import { PrintButton } from "@/components/PrintButton";
 import Decimal from "decimal.js";
+import ReportsFilter from "./ReportsFilter";
 
 const fmt = (n: Decimal | number | string) =>
   new Intl.NumberFormat("en-KE", {
@@ -27,6 +27,7 @@ export default async function ReportsPage({ searchParams }: PageProps) {
   const defaults = defaultDateRange();
   const fromStr = params.from ?? defaults.from;
   const toStr = params.to ?? defaults.to;
+  const today = new Date().toISOString().slice(0, 10);
 
   const from = new Date(fromStr + "T00:00:00Z");
   const to = new Date(toStr + "T23:59:59Z");
@@ -36,55 +37,28 @@ export default async function ReportsPage({ searchParams }: PageProps) {
     getReportSummary(from, to),
   ]);
 
+  const pdfUrl = `/api/pdf/report?from=${fromStr}&to=${toStr}`;
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Reports</h2>
-        <PrintButton className="bg-[#1C1C1C] border border-[#2A2A2A] text-zinc-300 hover:border-[#EAB308] hover:text-[#EAB308] rounded px-4 py-2 text-sm transition-colors print:hidden" />
-      </div>
-
-      {/* Date range filter — hidden on print */}
-      <form className="mb-6 flex gap-3 items-end print:hidden">
-        <div>
-          <label className="block text-xs text-zinc-400 mb-1">From</label>
-          <input
-            type="date"
-            name="from"
-            defaultValue={fromStr}
-            className="bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-zinc-400 mb-1">To</label>
-          <input
-            type="date"
-            name="to"
-            defaultValue={toStr}
-            className="bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors"
+        <a
+          href={pdfUrl}
+          target="_blank"
+          className="bg-[#4B0082] hover:bg-[#3a006b] text-white font-semibold rounded px-4 py-2 text-sm transition-colors"
         >
-          Apply
-        </button>
-      </form>
-
-      {/* Print header — only visible when printing */}
-      <div className="hidden print:block mb-4">
-        <p className="text-sm text-zinc-400">
-          Period: {fromStr} to {toStr}
-        </p>
+          ↓ Download PDF
+        </a>
       </div>
+
+      <ReportsFilter fromStr={fromStr} toStr={toStr} today={today} />
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Total Revenue</p>
-          <p className="text-xl font-bold text-[#EAB308]">
-            {fmt(report.totalRevenue)}
-          </p>
+          <p className="text-xl font-bold text-[#EAB308]">{fmt(report.totalRevenue)}</p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Cash</p>
@@ -96,9 +70,7 @@ export default async function ReportsPage({ searchParams }: PageProps) {
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Stock Value (WAC)</p>
-          <p className="text-xl font-bold text-zinc-200">
-            {fmt(summary.stockValueAtWac)}
-          </p>
+          <p className="text-xl font-bold text-zinc-200">{fmt(summary.stockValueAtWac)}</p>
         </div>
       </div>
 
@@ -136,34 +108,19 @@ export default async function ReportsPage({ searchParams }: PageProps) {
           </thead>
           <tbody>
             {report.days.map((d) => (
-              <tr
-                key={d.date}
-                className="border-b border-[#1C1C1C] hover:bg-[#111]"
-              >
+              <tr key={d.date} className="border-b border-[#1C1C1C] hover:bg-[#111]">
                 <td className="py-3 pr-4 text-zinc-300">{d.date}</td>
-                <td className="py-3 pr-4 text-right text-zinc-400">
-                  {d.salesCount}
-                </td>
-                <td className="py-3 pr-4 text-right text-zinc-300">
-                  {fmt(d.cash)}
-                </td>
-                <td className="py-3 pr-4 text-right text-zinc-300">
-                  {fmt(d.mpesa)}
-                </td>
-                <td className="py-3 pr-4 text-right text-zinc-300">
-                  {fmt(d.debt)}
-                </td>
-                <td className="py-3 text-right font-semibold text-white">
-                  {fmt(d.revenue)}
-                </td>
+                <td className="py-3 pr-4 text-right text-zinc-400">{d.salesCount}</td>
+                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.cash)}</td>
+                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.mpesa)}</td>
+                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.debt)}</td>
+                <td className="py-3 text-right font-semibold text-white">{fmt(d.revenue)}</td>
               </tr>
             ))}
           </tbody>
         </table>
         {report.days.length === 0 && (
-          <p className="text-center text-zinc-500 py-12">
-            No sales in this period.
-          </p>
+          <p className="text-center text-zinc-500 py-12">No sales in this period.</p>
         )}
       </div>
     </div>

@@ -22,11 +22,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(createElement(DeliveryNotePDF, { sale: data, shop }) as any);
   const docNo = sale.id.slice(-8).toUpperCase();
+  const dateStr = new Date(sale.date).toISOString().slice(0, 10);
+  const customer = sale.customer?.name?.replace(/\s+/g, "-").toLowerCase() ?? "walk-in";
 
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="delivery-note-${docNo}.pdf"`,
+      "Content-Disposition": `inline; filename="delivery-note-${docNo}-${customer}-${dateStr}.pdf"`,
     },
   });
 }

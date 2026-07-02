@@ -34,11 +34,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(createElement(QuotationPDF, { quotation: data, shop }) as any);
   const quotNo = quotation.id.slice(-8).toUpperCase();
+  const dateStr = new Date(quotation.date).toISOString().slice(0, 10);
+  const customer = quotation.customer?.name?.replace(/\s+/g, "-").toLowerCase() ?? "quotation";
 
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="quotation-${quotNo}.pdf"`,
+      "Content-Disposition": `inline; filename="quotation-${quotNo}-${customer}-${dateStr}.pdf"`,
     },
   });
 }

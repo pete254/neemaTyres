@@ -68,7 +68,15 @@ export default function SaleForm({
   const [payments, setPayments] = useState<SalePayment[]>(
     initialData?.payments ?? [{ channel: "CASH", amount: "" }]
   );
-  const [date, setDate] = useState(initialData?.date ?? new Date().toISOString().slice(0, 10));
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(initialData?.date ?? today);
+
+  const shiftDate = (d: string, days: number) => {
+    const dt = new Date(d + "T12:00:00");
+    dt.setDate(dt.getDate() + days);
+    const shifted = dt.toISOString().slice(0, 10);
+    return shifted <= today ? shifted : today;
+  };
   const [customer, setCustomer] = useState<CustomerSelection>(initialData?.customer ?? null);
   const [isPending, startTransition] = useTransition();
 
@@ -150,13 +158,21 @@ export default function SaleForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-zinc-300 mb-1">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-            className={inputClass}
-          />
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setDate(shiftDate(date, -1))}
+              className="px-2 py-2 text-zinc-400 hover:text-white bg-[#1C1C1C] border border-[#2A2A2A] rounded text-sm">‹</button>
+            <input
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              className={inputClass + " flex-1"}
+            />
+            <button type="button" onClick={() => setDate(shiftDate(date, 1))}
+              disabled={date >= today}
+              className="px-2 py-2 text-zinc-400 hover:text-white bg-[#1C1C1C] border border-[#2A2A2A] rounded text-sm disabled:opacity-30">›</button>
+          </div>
         </div>
         <div>
           <label className="block text-sm text-zinc-300 mb-1">
@@ -310,7 +326,13 @@ export default function SaleForm({
                       onChange={(e) =>
                         updateLine(i, { unitPrice: e.target.value })
                       }
-                      placeholder="Selling price"
+                      onKeyDown={(e) => {
+                        if (e.key === "Tab" && !line.unitPrice && refPrice !== null) {
+                          e.preventDefault();
+                          updateLine(i, { unitPrice: refPrice.toFixed(2) });
+                        }
+                      }}
+                      placeholder={refPrice !== null ? `${refPrice.toFixed(2)} (ref)` : "Selling price"}
                       required
                       className={
                         inputClass +
@@ -419,7 +441,13 @@ export default function SaleForm({
                     step="0.01"
                     value={pmt.amount}
                     onChange={(e) => updatePayment(i, "amount", e.target.value)}
-                    placeholder={showHint ? `${remaining.toFixed(2)}` : "Amount"}
+                    onKeyDown={(e) => {
+                      if (e.key === "Tab" && !pmt.amount && showHint) {
+                        e.preventDefault();
+                        updatePayment(i, "amount", remaining.toFixed(2));
+                      }
+                    }}
+                    placeholder={showHint ? `${remaining.toFixed(2)} (tab to fill)` : "Amount"}
                     required
                     className={inputClass + " w-full pr-20"}
                   />
