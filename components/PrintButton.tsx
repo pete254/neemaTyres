@@ -1,12 +1,14 @@
 "use client";
 
-export function PrintButton({ className }: { className?: string }) {
+import type { ReactNode } from "react";
+
+export function PrintButton({ className, children }: { className?: string; children?: ReactNode }) {
   return (
     <button
       onClick={() => window.print()}
       className={className}
     >
-      Export PDF
+      {children ?? "Export PDF"}
     </button>
   );
 }
