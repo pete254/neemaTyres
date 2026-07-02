@@ -1,6 +1,20 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Decimal from "decimal.js";
+import {
+  ShoppingCart,
+  PackagePlus,
+  Wallet,
+  Truck,
+  RotateCcw,
+  Flag,
+  TrendingUp,
+  TrendingDown,
+  Boxes,
+  Users,
+  BadgeDollarSign,
+  BarChart2,
+} from "lucide-react";
 
 const fmt = (n: number | Decimal) =>
   new Intl.NumberFormat("en-KE", {
@@ -105,18 +119,20 @@ export default async function DashboardPage() {
     todayStr,
   } = await getDashboardData();
 
-  const cardBase =
-    "bg-[#111] border border-[#2A2A2A] rounded-lg p-4 transition-colors";
+  const cardBase = "bg-[#111] border border-[#2A2A2A] rounded-lg p-4 transition-colors";
   const cardLink = cardBase + " hover:border-[#EAB308] cursor-pointer";
 
   const quickLinks = [
-    { href: "/sales/new", label: "Record Sale" },
-    { href: "/purchases/new", label: "Record Purchase" },
-    { href: "/debt-collections/new", label: "Collect Debt" },
-    { href: "/supplier-payments/new", label: "Pay Supplier" },
-    { href: "/returns/new", label: "Process Return" },
-    { href: "/exceptions", label: "Review Flags" },
+    { href: "/sales/new",             label: "Record Sale",      icon: ShoppingCart },
+    { href: "/purchases/new",         label: "Record Purchase",  icon: PackagePlus },
+    { href: "/debt-collections/new",  label: "Collect Debt",     icon: Wallet },
+    { href: "/supplier-payments/new", label: "Pay Supplier",     icon: Truck },
+    { href: "/returns/new",           label: "Process Return",   icon: RotateCcw },
+    { href: "/exceptions",            label: "Review Flags",     icon: Flag },
   ];
+
+  const profitColor = todayProfit.gte(0) ? "text-green-400" : "text-red-400";
+  const ProfitIcon = todayProfit.gte(0) ? TrendingUp : TrendingDown;
 
   return (
     <div className="p-6">
@@ -127,33 +143,28 @@ export default async function DashboardPage() {
         Today &mdash; {todayStr}
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Link
-          href={`/sales?from=${todayStr}&to=${todayStr}`}
-          className={cardLink}
-        >
-          <p className="text-xs text-zinc-500 mb-1">Total Sales</p>
+        <Link href={`/sales?from=${todayStr}&to=${todayStr}`} className={cardLink}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Total Sales</p>
+            <ShoppingCart size={16} className="text-[#EAB308] opacity-70" />
+          </div>
           <p className="text-xl font-bold text-[#EAB308]">{fmt(todaySales)}</p>
           <p className="text-xs text-zinc-600 mt-1">View transactions →</p>
         </Link>
-        <Link
-          href={`/purchases?from=${todayStr}&to=${todayStr}`}
-          className={cardLink}
-        >
-          <p className="text-xs text-zinc-500 mb-1">Purchases</p>
-          <p className="text-xl font-bold text-blue-400">
-            {fmt(todayPurchases)}
-          </p>
+        <Link href={`/purchases?from=${todayStr}&to=${todayStr}`} className={cardLink}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Purchases</p>
+            <PackagePlus size={16} className="text-blue-400 opacity-70" />
+          </div>
+          <p className="text-xl font-bold text-blue-400">{fmt(todayPurchases)}</p>
           <p className="text-xs text-zinc-600 mt-1">View transactions →</p>
         </Link>
         <div className={cardBase}>
-          <p className="text-xs text-zinc-500 mb-1">Gross Profit</p>
-          <p
-            className={`text-xl font-bold ${
-              todayProfit.gte(0) ? "text-green-400" : "text-red-400"
-            }`}
-          >
-            {fmt(todayProfit)}
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Gross Profit</p>
+            <ProfitIcon size={16} className={`${profitColor} opacity-70`} />
+          </div>
+          <p className={`text-xl font-bold ${profitColor}`}>{fmt(todayProfit)}</p>
         </div>
       </div>
 
@@ -163,23 +174,35 @@ export default async function DashboardPage() {
       </p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className={cardBase}>
-          <p className="text-xs text-zinc-500 mb-1">Stock Value (WAC)</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Stock Value (WAC)</p>
+            <BarChart2 size={16} className="text-[#EAB308] opacity-70" />
+          </div>
           <p className="text-xl font-bold text-[#EAB308]">{fmt(stockValue)}</p>
         </div>
+        <Link href="/inventory" className={cardLink}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Tyres in Store</p>
+            <Boxes size={16} className="text-green-400 opacity-70" />
+          </div>
+          <p className="text-xl font-bold text-green-400">{tyresInStore}</p>
+          <p className="text-xs text-zinc-600 mt-1">View inventory →</p>
+        </Link>
         <Link href="/debtors" className={cardLink}>
-          <p className="text-xs text-zinc-500 mb-1">Active Debtors</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Active Debtors</p>
+            <Users size={16} className="text-white opacity-50" />
+          </div>
           <p className="text-xl font-bold text-white">{activeDebtors}</p>
           <p className="text-xs text-zinc-600 mt-1">View list →</p>
         </Link>
         <Link href="/debtors" className={cardLink}>
-          <p className="text-xs text-zinc-500 mb-1">Total Owed</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-zinc-500">Total Owed</p>
+            <BadgeDollarSign size={16} className="text-red-400 opacity-70" />
+          </div>
           <p className="text-xl font-bold text-red-400">{fmt(totalOwed)}</p>
           <p className="text-xs text-zinc-600 mt-1">View list →</p>
-        </Link>
-        <Link href="/inventory" className={cardLink}>
-          <p className="text-xs text-zinc-500 mb-1">Tyres in Store</p>
-          <p className="text-xl font-bold text-green-400">{tyresInStore}</p>
-          <p className="text-xs text-zinc-600 mt-1">View inventory →</p>
         </Link>
       </div>
 
@@ -188,13 +211,14 @@ export default async function DashboardPage() {
         Quick Actions
       </h3>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {quickLinks.map((link) => (
+        {quickLinks.map(({ href, label, icon: Icon }) => (
           <Link
-            key={link.href}
-            href={link.href}
-            className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4 text-sm font-medium text-zinc-300 hover:border-[#EAB308] hover:text-[#EAB308] transition-colors"
+            key={href}
+            href={href}
+            className="flex items-center gap-3 bg-[#111] border border-[#2A2A2A] rounded-lg p-4 text-sm font-medium text-zinc-300 hover:border-[#EAB308] hover:text-[#EAB308] transition-colors"
           >
-            {link.label}
+            <Icon size={16} strokeWidth={1.75} className="flex-shrink-0" />
+            {label}
           </Link>
         ))}
       </div>

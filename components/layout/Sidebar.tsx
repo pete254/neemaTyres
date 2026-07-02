@@ -3,24 +3,43 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  ClipboardList,
+  PackagePlus,
+  Package,
+  FileText,
+  Wallet,
+  Truck,
+  RotateCcw,
+  Boxes,
+  Users,
+  UserX,
+  Building2,
+  BarChart2,
+  History,
+  Settings,
+  LogOut,
+} from "lucide-react";
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/sales/new", label: "New Sale" },
-  { href: "/sales", label: "Sales" },
-  { href: "/purchases/new", label: "New Purchase" },
-  { href: "/purchases", label: "Purchases" },
-  { href: "/quotations/new", label: "New Quotation" },
-  { href: "/debt-collections/new", label: "Debt Collection" },
-  { href: "/supplier-payments/new", label: "Supplier Payment" },
-  { href: "/returns/new", label: "Returns" },
-  { href: "/inventory", label: "Inventory" },
-  { href: "/customers", label: "Customers" },
-  { href: "/debtors", label: "Debtors" },
-  { href: "/suppliers", label: "Suppliers" },
-  { href: "/reports", label: "Reports" },
-  { href: "/history", label: "History" },
-  { href: "/settings", label: "Settings" },
+  { href: "/dashboard",             label: "Dashboard",        icon: LayoutDashboard },
+  { href: "/sales/new",             label: "New Sale",         icon: ShoppingCart },
+  { href: "/sales",                 label: "Sales",            icon: ClipboardList },
+  { href: "/purchases/new",         label: "New Purchase",     icon: PackagePlus },
+  { href: "/purchases",             label: "Purchases",        icon: Package },
+  { href: "/quotations/new",        label: "New Quotation",    icon: FileText },
+  { href: "/debt-collections/new",  label: "Debt Collection",  icon: Wallet },
+  { href: "/supplier-payments/new", label: "Supplier Payment", icon: Truck },
+  { href: "/returns/new",           label: "Returns",          icon: RotateCcw },
+  { href: "/inventory",             label: "Inventory",        icon: Boxes },
+  { href: "/customers",             label: "Customers",        icon: Users },
+  { href: "/debtors",               label: "Debtors",          icon: UserX },
+  { href: "/suppliers",             label: "Suppliers",        icon: Building2 },
+  { href: "/reports",               label: "Reports",          icon: BarChart2 },
+  { href: "/history",               label: "History",          icon: History },
+  { href: "/settings",              label: "Settings",         icon: Settings },
 ];
 
 interface SidebarProps {
@@ -42,19 +61,20 @@ export default function Sidebar({ userName }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2">
-        {navLinks.map((link) => {
-          const active = pathname === link.href;
+        {navLinks.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href;
           return (
             <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center px-4 py-2 text-sm font-medium transition-colors ${
+              key={href}
+              href={href}
+              className={`flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-colors ${
                 active
                   ? "bg-[#EAB308] text-black"
                   : "text-zinc-300 hover:bg-[#1C1C1C] hover:text-white"
               }`}
             >
-              {link.label}
+              <Icon size={15} strokeWidth={1.75} />
+              {label}
             </Link>
           );
         })}
@@ -65,8 +85,9 @@ export default function Sidebar({ userName }: SidebarProps) {
         <p className="text-xs text-zinc-500 mb-3 truncate">{userName}</p>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="w-full text-left text-sm text-zinc-400 hover:text-white transition-colors"
+          className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
         >
+          <LogOut size={14} strokeWidth={1.75} />
           Sign out
         </button>
       </div>
