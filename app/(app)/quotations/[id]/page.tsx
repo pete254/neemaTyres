@@ -38,6 +38,19 @@ export default async function QuotationPrintPage({ params }: { params: Promise<{
       </div>
 
       <div className="print:p-0">
+        {/* Document title */}
+        <div className="text-center border-b-2 border-[#4B0082] pb-4 mb-6">
+          <h1 className="text-3xl font-bold text-[#4B0082] uppercase tracking-widest">Quotation</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            No: {id.slice(-8).toUpperCase()} &nbsp;·&nbsp;{" "}
+            <strong>Date:</strong>{" "}
+            {new Date(quotation.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
+            &nbsp;·&nbsp;{" "}
+            <strong>Valid until:</strong>{" "}
+            {validUntil.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        </div>
+
         {/* Two-column header: Quotation From | Quotation For */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           {/* From (shop) */}
@@ -86,18 +99,6 @@ export default async function QuotationPrintPage({ params }: { params: Promise<{
               <p className="text-sm text-gray-500 italic">Walk-in customer</p>
             )}
           </div>
-        </div>
-
-        {/* Meta row */}
-        <div className="flex justify-between text-sm text-gray-600 mb-4">
-          <p><strong>Country of Supply:</strong> {shop.country || "Kenya"}</p>
-          <p>
-            <strong>Date:</strong>{" "}
-            {new Date(quotation.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
-            {" · "}
-            <strong>Valid until:</strong>{" "}
-            {validUntil.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
-          </p>
         </div>
 
         {/* Items table */}

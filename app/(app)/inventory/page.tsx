@@ -57,13 +57,21 @@ export default async function InventoryPage({ searchParams }: PageProps) {
 
       {/* Print-only header */}
       <div className="hidden print:block mb-6">
-        <h1 className="text-2xl font-bold text-black">{shop.name || "Stock Report"}</h1>
-        {shop.town && <p className="text-sm text-gray-600">{shop.town}</p>}
-        <div className="flex justify-between items-end mt-2">
-          <p className="text-lg font-semibold text-black">Stock Report</p>
-          <p className="text-sm text-gray-500">As at {printDate}</p>
+        <div className="flex justify-between items-start border-b-2 border-black pb-4">
+          <div>
+            {shop.name
+              ? <p className="text-xl font-bold text-black">{shop.name}</p>
+              : <p className="text-sm text-gray-400 italic">Shop name not configured</p>
+            }
+            {shop.address && <p className="text-sm text-gray-600">{shop.address}</p>}
+            {shop.town && <p className="text-sm text-gray-600">{shop.town}{shop.county ? `, ${shop.county}` : ""}</p>}
+            {shop.phone && <p className="text-sm text-gray-600">{shop.phone}</p>}
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-black uppercase tracking-wide">Stock Report</p>
+            <p className="text-sm text-gray-500 mt-1">As at {printDate}</p>
+          </div>
         </div>
-        <hr className="border-black mt-2" />
       </div>
 
       {/* Search / filter — hidden on print */}
