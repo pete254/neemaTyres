@@ -44,7 +44,7 @@ export default async function NewReturnPage({ searchParams }: PageProps) {
             <option value="">Select tyre...</option>
             {variants.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.sizeBucket} · {v.sizeCanonical} — {v.brand.name}
+                {v.sizeBucket} · {v.sizeCanonical} — {v.brand.name} · {v.position}
                 {v.patternCode ? ` (${v.patternCode})` : ""}
               </option>
             ))}

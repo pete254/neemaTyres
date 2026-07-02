@@ -15,6 +15,7 @@ interface Variant {
   id: string;
   sizeBucket: string;
   sizeCanonical: string;
+  position: string;
   qtyOnHand: number;
   patternCode: string | null;
   wacCost: unknown; // Decimal from Prisma (serialised as string)
@@ -246,7 +247,7 @@ export default function SaleForm({
                       </option>
                       {bucketVariants.map((bv) => (
                         <option key={bv.id} value={bv.id}>
-                          {bv.sizeCanonical} — {bv.brand.name}
+                          {bv.sizeCanonical} — {bv.brand.name} · {bv.position}
                           {bv.patternCode ? ` (${bv.patternCode})` : ""} ·{" "}
                           {bv.qtyOnHand} in stock
                         </option>

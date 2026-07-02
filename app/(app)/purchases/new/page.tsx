@@ -16,6 +16,7 @@ export default async function NewPurchasePage({ searchParams }: PageProps) {
     id: v.id,
     sizeBucket: v.sizeBucket,
     sizeCanonical: v.sizeCanonical,
+    position: v.position,
     patternCode: v.patternCode,
     wacCost: v.wacCost.toString(),
     qtyOnHand: v.qtyOnHand,

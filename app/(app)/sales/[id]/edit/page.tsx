@@ -36,6 +36,7 @@ export default async function EditSalePage({ params }: PageProps) {
     id: v.id,
     sizeBucket: v.sizeBucket,
     sizeCanonical: v.sizeCanonical,
+    position: v.position,
     qtyOnHand: v.qtyOnHand + (qtyBoost.get(v.id) ?? 0),
     patternCode: v.patternCode,
     wacCost: v.wacCost.toString(),

@@ -14,6 +14,7 @@ interface Variant {
   id: string;
   sizeBucket: string;
   sizeCanonical: string;
+  position: string;
   patternCode: string | null;
   wacCost: string;
   qtyOnHand: number;
@@ -237,7 +238,7 @@ export default function PurchaseForm({
                       </option>
                       {bucketVariants.map((bv) => (
                         <option key={bv.id} value={bv.id}>
-                          {bv.sizeCanonical} — {bv.brand.name}
+                          {bv.sizeCanonical} — {bv.brand.name} · {bv.position}
                           {bv.patternCode ? ` (${bv.patternCode})` : ""} ·{" "}
                           {bv.qtyOnHand} on hand
                         </option>
