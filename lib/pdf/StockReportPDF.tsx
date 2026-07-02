@@ -1,7 +1,7 @@
 import { Document, Page, View, Text } from "@react-pdf/renderer";
 import { StyleSheet } from "@react-pdf/renderer";
 import { base, fmt, GRAY, LIGHT, PURPLE, RED } from "./styles";
-import type { ShopInfo } from "@/lib/shopInfo";
+import type { ShopInfoData as ShopInfo } from "@/lib/shopInfo";
 import Decimal from "decimal.js";
 
 interface Variant {

@@ -1,7 +1,7 @@
 import { Document, Page, View, Text } from "@react-pdf/renderer";
 import { base, fmt, GRAY, PURPLE } from "./styles";
 import { toWords } from "@/lib/numberToWords";
-import type { ShopInfo } from "@/lib/shopInfo";
+import type { ShopInfoData as ShopInfo } from "@/lib/shopInfo";
 import Decimal from "decimal.js";
 
 interface Line { id: string; description: string; qty: number; unitPrice: string | number; lineTotal: string | number; }
