@@ -6,6 +6,7 @@ import {
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import VariantPicker from "@/components/forms/VariantPicker";
+import DatePickerField from "@/components/ui/DatePickerField";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -76,7 +77,7 @@ export default function NewSaleScreen() {
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.sectionLabel}>Date</Text>
-      <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+      <DatePickerField value={date} onChange={setDate} />
 
       <Text style={styles.sectionLabel}>Customer (optional — leave blank for walk-in)</Text>
       <TextInput style={styles.input} value={walkinName} onChangeText={setWalkinName} placeholder="Walk-in name" placeholderTextColor="#555" />

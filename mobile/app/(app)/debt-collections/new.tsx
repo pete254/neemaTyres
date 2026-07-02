@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import DatePickerField from "@/components/ui/DatePickerField";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -109,7 +110,7 @@ export default function NewDebtCollectionScreen() {
 
       {/* Date */}
       <Text style={styles.sectionLabel}>Date</Text>
-      <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+      <DatePickerField value={date} onChange={setDate} />
 
       <TouchableOpacity
         style={[styles.submitBtn, mutation.isPending && styles.submitBtnDisabled]}

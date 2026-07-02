@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Alert,
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import VariantPicker from "@/components/forms/VariantPicker";
+import DatePickerField from "@/components/ui/DatePickerField";
 import { api } from "@/lib/api";
 import { keys } from "@/lib/queryKeys";
 import { useBottomPadding } from "@/lib/useBottomPadding";
@@ -60,7 +61,7 @@ export default function NewReturnScreen() {
       <TextInput style={styles.input} value={unitValue} onChangeText={setUnitValue} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#555" />
 
       <Text style={styles.sectionLabel}>Date</Text>
-      <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+      <DatePickerField value={date} onChange={setDate} />
 
       <Text style={styles.sectionLabel}>Note (optional)</Text>
       <TextInput style={styles.input} value={note} onChangeText={setNote} placeholder="Reason for return" placeholderTextColor="#555" />

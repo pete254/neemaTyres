@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { signIn } from "@/lib/auth";
 import { useAuth } from "@/lib/AuthContext";
@@ -45,30 +46,41 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.card}>
+        {/* Logo / brand */}
+        <View style={styles.logoRow}>
+          <Ionicons name="car-sport" size={32} color="#EAB308" />
+        </View>
         <Text style={styles.logo}>Kwambira Tyres</Text>
         <Text style={styles.subtitle}>Sign in to continue</Text>
 
         {error && (
           <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={16} color="#FCA5A5" style={{ marginRight: 8 }} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#555"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <View style={styles.passwordWrapper}>
+        {/* Email field */}
+        <View style={styles.fieldWrapper}>
+          <Ionicons name="mail-outline" size={18} color="#555" style={styles.fieldIcon} />
           <TextInput
-            style={styles.passwordInput}
+            style={styles.fieldInput}
+            placeholder="Email"
+            placeholderTextColor="#555"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
+
+        {/* Password field */}
+        <View style={styles.fieldWrapper}>
+          <Ionicons name="lock-closed-outline" size={18} color="#555" style={styles.fieldIcon} />
+          <TextInput
+            style={styles.fieldInput}
             placeholder="Password"
             placeholderTextColor="#555"
             secureTextEntry={!showPassword}
@@ -83,7 +95,12 @@ export default function LoginScreen() {
             onPress={() => setShowPassword((v) => !v)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.eyeText}>{showPassword ? "🙈" : "👁"}</Text>
+            {/* Eye open = password visible; eye-off = password hidden */}
+            <Ionicons
+              name={showPassword ? "eye-outline" : "eye-off-outline"}
+              size={20}
+              color="#71717A"
+            />
           </TouchableOpacity>
         </View>
 
@@ -95,7 +112,10 @@ export default function LoginScreen() {
           {loading ? (
             <ActivityIndicator color="#000" />
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <View style={styles.buttonInner}>
+              <Ionicons name="log-in-outline" size={18} color="#000" />
+              <Text style={styles.buttonText}>Sign In</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -115,23 +135,31 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 400,
     backgroundColor: "#111",
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 28,
     borderWidth: 1,
     borderColor: "#2A2A2A",
   },
+  logoRow: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
   logo: {
     color: "#EAB308",
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 4,
   },
   subtitle: {
     color: "#71717A",
     fontSize: 14,
-    marginBottom: 24,
+    textAlign: "center",
+    marginBottom: 28,
   },
   errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#1F1010",
     borderWidth: 1,
     borderColor: "#7F1D1D",
@@ -142,47 +170,45 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#FCA5A5",
     fontSize: 13,
+    flex: 1,
   },
-  input: {
-    backgroundColor: "#1C1C1C",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-    borderRadius: 8,
-    color: "#fff",
-    fontSize: 15,
-    padding: 14,
-    marginBottom: 12,
-  },
-  passwordWrapper: {
+  fieldWrapper: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#1C1C1C",
     borderWidth: 1,
     borderColor: "#2A2A2A",
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 12,
+    paddingHorizontal: 14,
   },
-  passwordInput: {
+  fieldIcon: {
+    marginRight: 10,
+  },
+  fieldInput: {
     flex: 1,
     color: "#fff",
     fontSize: 15,
-    padding: 14,
+    paddingVertical: 14,
   },
   eyeButton: {
-    paddingHorizontal: 14,
-  },
-  eyeText: {
-    fontSize: 18,
+    paddingLeft: 10,
+    paddingVertical: 14,
   },
   button: {
     backgroundColor: "#EAB308",
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 10,
+    padding: 15,
     alignItems: "center",
     marginTop: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  buttonInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   buttonText: {
     color: "#000",
