@@ -19,6 +19,7 @@ const navLinks = [
   { href: "/suppliers", label: "Suppliers" },
   { href: "/reports", label: "Reports" },
   { href: "/exceptions", label: "Exceptions" },
+  { href: "/history", label: "History" },
   { href: "/ai", label: "AI Assistant" },
 ];
 

@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { postReturn } from "@/lib/posting";
 import type { ReturnType } from "@/lib/posting/types";
+import { logAction } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -26,17 +27,22 @@ export async function POST(req: NextRequest) {
       note?: string;
     };
 
-    await postReturn({
+    const uv = new Decimal(body.unitValue);
+    const ret = await postReturn({
       type: body.type as ReturnType,
       variantId: body.variantId,
       qty: body.qty,
-      unitValue: new Decimal(body.unitValue),
+      unitValue: uv,
       date: new Date(body.date + "T00:00:00Z"),
       originalSaleLineId: body.originalSaleLineId,
       originalPurchaseLineId: body.originalPurchaseLineId,
       note: body.note,
       recordedById: userId,
     });
+
+    await logAction(userId, "CREATE_RETURN", "Return", ret.id,
+      `${body.type} — qty ${body.qty} @ KES ${uv.toFixed(2)}`,
+      { type: body.type, variantId: body.variantId, qty: body.qty, source: "mobile" });
 
     return Response.json({ success: true });
   } catch (err) {

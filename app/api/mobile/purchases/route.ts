@@ -5,6 +5,7 @@ import { ok } from "@/app/api/mobile/_serialize";
 import { getPurchasesBetween } from "@/lib/queries";
 import { postPurchase } from "@/lib/posting";
 import type { PurchaseTerms } from "@/lib/posting/types";
+import { logAction } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
         unitCost: new Decimal(l.unitCost),
       })),
     });
+
+    await logAction(userId, "CREATE_PURCHASE", "Purchase", result.id,
+      `Purchase of ${body.lines.length} line(s), terms ${body.terms}`,
+      { terms: body.terms, lineCount: body.lines.length, source: "mobile" });
 
     return Response.json({ success: true, purchaseId: result.id });
   } catch (err) {

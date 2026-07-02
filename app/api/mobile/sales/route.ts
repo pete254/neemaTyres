@@ -6,6 +6,7 @@ import { getSalesBetween } from "@/lib/queries";
 import { postSale } from "@/lib/posting";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import type { PaymentChannel } from "@/lib/posting/types";
+import { logAction } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -68,6 +69,10 @@ export async function POST(req: NextRequest) {
         amount: new Decimal(p.amount),
       })),
     });
+
+    await logAction(userId, "CREATE_SALE", "Sale", result.id,
+      `Sale of ${body.lines.length} line(s), total KES ${result.totalAmount}`,
+      { totalAmount: result.totalAmount.toString(), lineCount: body.lines.length, source: "mobile" });
 
     return Response.json({ success: true, saleId: result.id });
   } catch (err) {

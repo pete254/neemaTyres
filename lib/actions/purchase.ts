@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import Decimal from "decimal.js";
 import { postPurchase, deletePurchase } from "@/lib/posting";
+import { logAction } from "@/lib/audit";
 
 export async function createPurchase(formData: FormData) {
   const session = await auth();
@@ -21,13 +22,17 @@ export async function createPurchase(formData: FormData) {
     unitCost: new Decimal(l.unitCost),
   }));
 
-  await postPurchase({
+  const purchase = await postPurchase({
     supplierId: supplierId || undefined,
     date,
     terms,
     recordedById: session.user.id,
     lines,
   });
+
+  await logAction(session.user.id, "CREATE_PURCHASE", "Purchase", purchase.id,
+    `Purchase of ${lines.length} line(s), terms ${terms}`,
+    { terms, lineCount: lines.length });
 
   revalidatePath("/inventory");
   revalidatePath("/suppliers");
@@ -54,7 +59,11 @@ export async function updatePurchase(purchaseId: string, formData: FormData) {
   const { supplierId, terms, date, lines } = parsePurchaseFormData(formData);
 
   await deletePurchase(purchaseId);
-  await postPurchase({ supplierId: supplierId || undefined, date, terms, recordedById: session.user.id, lines });
+  const updated = await postPurchase({ supplierId: supplierId || undefined, date, terms, recordedById: session.user.id, lines });
+
+  await logAction(session.user.id, "UPDATE_PURCHASE", "Purchase", updated.id,
+    `Purchase updated — ${lines.length} line(s), terms ${terms}`,
+    { previousPurchaseId: purchaseId });
 
   revalidatePath("/purchases");
   revalidatePath("/inventory");
@@ -70,6 +79,8 @@ export async function deletePurchaseAction(formData: FormData) {
   if (!purchaseId) throw new Error("purchaseId required");
 
   await deletePurchase(purchaseId);
+  await logAction(session.user.id, "DELETE_PURCHASE", "Purchase", purchaseId,
+    `Purchase ${purchaseId} deleted — WAC reversed`);
 
   revalidatePath("/purchases");
   revalidatePath("/inventory");

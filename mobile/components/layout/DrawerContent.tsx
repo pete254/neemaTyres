@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { label: "Inventory", href: "/(app)/inventory" },
   { label: "Reports", href: "/(app)/reports" },
   { label: "Exceptions", href: "/(app)/exceptions" },
+  { label: "History", href: "/(app)/history" },
   { label: "AI Assistant", href: "/(app)/ai" },
 ];
 

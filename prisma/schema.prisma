@@ -147,6 +147,7 @@ model User {
   recordedReturns          Return[]
   recordedOpeningBalances  OpeningBalanceEntry[]
   resolvedFlags            ExceptionFlag[]
+  auditLogs                AuditLog[]
 }
 
 // ─── Transactions (immutable; reverse with a counter-entry, never delete) ────
@@ -337,6 +338,22 @@ model LedgerEntry {
   runningBalance Decimal  @db.Decimal(14, 2)
 
   @@index([supplierId, date])
+}
+
+// Immutable record of every user-initiated write action.
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String   // e.g. CREATE_SALE, DELETE_PURCHASE
+  entityType  String   // e.g. Sale, Purchase
+  entityId    String?
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 // Human-review queue for anomalies detected during posting or import.

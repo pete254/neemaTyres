@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import Decimal from "decimal.js";
 import { postSale, deleteSale } from "@/lib/posting";
 import { upsertCustomerByName } from "@/lib/domain/customer";
+import { logAction } from "@/lib/audit";
 
 export async function createSale(formData: FormData) {
   const session = await auth();
@@ -33,13 +34,17 @@ export async function createSale(formData: FormData) {
     amount: new Decimal(p.amount),
   }));
 
-  await postSale({
+  const sale = await postSale({
     customerId: customerId || undefined,
     date,
     recordedById: session.user.id,
     lines,
     payments,
   });
+
+  await logAction(session.user.id, "CREATE_SALE", "Sale", sale.id,
+    `Sale of ${lines.length} line(s), total KES ${sale.totalAmount}`,
+    { totalAmount: sale.totalAmount.toString(), lineCount: lines.length });
 
   revalidatePath("/inventory");
   revalidatePath("/debtors");
@@ -73,13 +78,17 @@ export async function updateSale(saleId: string, formData: FormData) {
   }));
 
   await deleteSale(saleId);
-  await postSale({
+  const updated = await postSale({
     customerId: customerId || undefined,
     date,
     recordedById: session.user.id,
     lines,
     payments,
   });
+
+  await logAction(session.user.id, "UPDATE_SALE", "Sale", updated.id,
+    `Sale updated — ${lines.length} line(s), total KES ${updated.totalAmount}`,
+    { previousSaleId: saleId, totalAmount: updated.totalAmount.toString() });
 
   revalidatePath("/sales");
   revalidatePath("/inventory");
@@ -96,6 +105,8 @@ export async function deleteSaleAction(formData: FormData) {
   if (!saleId) throw new Error("saleId required");
 
   await deleteSale(saleId);
+  await logAction(session.user.id, "DELETE_SALE", "Sale", saleId,
+    `Sale ${saleId} deleted — stock restored`);
 
   revalidatePath("/sales");
   revalidatePath("/inventory");
