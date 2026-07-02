@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getInventory } from "@/lib/queries";
 import { getShopInfo } from "@/lib/shopInfo";
 import { PrintButton } from "@/components/PrintButton";
@@ -47,6 +48,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
         <h2 className="text-2xl font-bold text-white">Inventory</h2>
         <div className="flex items-center gap-3">
           <span className="text-sm text-zinc-400">{variants.length} items</span>
+          <Link
+            href="/variants/new"
+            className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors"
+          >
+            + New Tyre Type
+          </Link>
           <PrintButton
             className="bg-[#4B0082] hover:bg-[#3a006b] text-white font-semibold rounded px-4 py-2 text-sm transition-colors"
           >
@@ -114,7 +121,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               <th className="pb-3 pr-4 text-right">Qty</th>
               <th className="pb-3 pr-4 text-right">WAC</th>
               <th className="pb-3 pr-4 text-right">Sell Ref</th>
-              <th className="pb-3 text-right">Value@WAC</th>
+              <th className="pb-3 pr-4 text-right">Value@WAC</th>
+              <th className="pb-3 print:hidden" />
             </tr>
           </thead>
           <tbody>
@@ -145,7 +153,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
                   <td className="py-2 pr-4 text-right text-zinc-400 print:text-gray-600">
                     {v.referenceSellPrice ? fmt(v.referenceSellPrice.toString()) : "-"}
                   </td>
-                  <td className="py-2 text-right text-zinc-300 print:text-black print:font-medium">{fmt(value)}</td>
+                  <td className="py-2 pr-4 text-right text-zinc-300 print:text-black print:font-medium">{fmt(value)}</td>
+                  <td className="py-2 text-right print:hidden">
+                    <Link href={`/variants/${v.id}/edit`} className="text-zinc-500 hover:text-white text-xs">
+                      Edit
+                    </Link>
+                  </td>
                 </tr>
               );
             })}
@@ -157,7 +170,8 @@ export default async function InventoryPage({ searchParams }: PageProps) {
               </td>
               <td className="pt-3 pr-4 text-right text-white print:text-black">{totalQty}</td>
               <td colSpan={2} />
-              <td className="pt-3 text-right text-[#EAB308] print:text-black print:font-bold">{fmt(totalValue)}</td>
+              <td className="pt-3 pr-4 text-right text-[#EAB308] print:text-black print:font-bold">{fmt(totalValue)}</td>
+              <td className="print:hidden" />
             </tr>
           </tfoot>
         </table>

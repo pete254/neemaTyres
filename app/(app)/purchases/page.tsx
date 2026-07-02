@@ -29,12 +29,26 @@ export default async function PurchasesPage({ searchParams }: PageProps) {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Purchases</h2>
-        <Link
-          href="/purchases/new"
-          className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors"
-        >
-          + Record Purchase
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/variants/new"
+            className="border border-[#2A2A2A] hover:border-zinc-500 text-zinc-300 hover:text-white rounded px-3 py-2 text-sm transition-colors"
+          >
+            + Tyre Type
+          </Link>
+          <Link
+            href="/suppliers/new"
+            className="border border-[#2A2A2A] hover:border-zinc-500 text-zinc-300 hover:text-white rounded px-3 py-2 text-sm transition-colors"
+          >
+            + Supplier
+          </Link>
+          <Link
+            href="/purchases/new"
+            className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors"
+          >
+            + Record Purchase
+          </Link>
+        </div>
       </div>
 
       <FilterBar

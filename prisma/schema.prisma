@@ -122,6 +122,11 @@ model Customer {
 model Supplier {
   id             String   @id @default(cuid())
   name           String   @unique
+  phone          String?
+  email          String?
+  address        String?
+  town           String?
+  poBox          String?
   openingBalance Decimal  @default(0) @db.Decimal(14, 2)
   createdAt      DateTime @default(now())
 
