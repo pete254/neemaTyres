@@ -9,12 +9,12 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { signIn } from "@/lib/auth";
-import { useAuth } from "@/lib/AuthContext";
 
 export default function LoginScreen() {
-  const { setIsAuthed } = useAuth();
+  const router = useRouter();
   const { top, bottom } = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +31,7 @@ export default function LoginScreen() {
     setError(null);
     try {
       await signIn(email.trim(), password);
-      setIsAuthed(true); // triggers root layout to redirect to dashboard
+      router.replace("/(app)/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
     } finally {
