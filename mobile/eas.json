@@ -3,6 +3,16 @@
     "version": ">= 18.0.0"
   },
   "build": {
+    "development": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://kwambira-tyres.vercel.app"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "android": {
