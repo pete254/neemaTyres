@@ -22,7 +22,8 @@ export async function GET() {
 
   const printDate = new Date().toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
 
-  const buffer = await renderToBuffer(createElement(StockReportPDF, { variants, shop, printDate }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buffer = await renderToBuffer(createElement(StockReportPDF, { variants, shop, printDate }) as any);
 
   return new Response(buffer, {
     headers: {

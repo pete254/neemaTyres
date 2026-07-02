@@ -12,7 +12,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const [sale, shop] = await Promise.all([getSaleById(id), getShopInfo()]);
   if (!sale) return notFound();
 
-  const buffer = await renderToBuffer(createElement(InvoicePDF, { sale, shop }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buffer = await renderToBuffer(createElement(InvoicePDF, { sale, shop }) as any);
   const invoiceNo = sale.id.slice(-8).toUpperCase();
 
   return new Response(buffer, {

@@ -31,7 +31,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     })),
   };
 
-  const buffer = await renderToBuffer(createElement(QuotationPDF, { quotation: data, shop }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const buffer = await renderToBuffer(createElement(QuotationPDF, { quotation: data, shop }) as any);
   const quotNo = quotation.id.slice(-8).toUpperCase();
 
   return new Response(buffer, {
