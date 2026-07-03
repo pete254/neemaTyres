@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
@@ -52,11 +53,21 @@ export default function Sidebar({ userName }: SidebarProps) {
   return (
     <aside className="w-56 flex-shrink-0 bg-[#111111] border-r border-[#2A2A2A] flex flex-col">
       {/* Header */}
-      <div className="px-4 py-5 border-b border-[#2A2A2A]">
-        <h1 className="text-base font-bold text-[#EAB308] leading-tight">
-          Kwambira Tyres
-        </h1>
-        <p className="text-xs text-zinc-500 mt-0.5">Neema Tyres</p>
+      <div className="px-4 py-4 border-b border-[#2A2A2A] flex items-center gap-3">
+        <Image
+          src="/tyre-logo.jpg"
+          alt="Kwambira Tyres"
+          width={40}
+          height={40}
+          className="rounded-full object-cover flex-shrink-0"
+          priority
+        />
+        <div>
+          <h1 className="text-sm font-bold text-[#EAB308] leading-tight">
+            Kwambira Tyres
+          </h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Neema Tyres</p>
+        </div>
       </div>
 
       {/* Nav */}

@@ -6,10 +6,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getShopInfo } from "@/lib/shopInfo";
 import { QuotationPDF } from "@/lib/pdf/QuotationPDF";
+import { getLogoDataUri } from "@/lib/pdf/logoImage";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [quotation, shop] = await Promise.all([
+  const [quotation, shop, logoSrc] = await Promise.all([
     prisma.quotation.findUnique({
       where: { id },
       include: {
@@ -19,6 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
     }),
     getShopInfo(),
+    Promise.resolve(getLogoDataUri()),
   ]);
   if (!quotation) return notFound();
 
@@ -33,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buffer = await renderToBuffer(createElement(QuotationPDF, { quotation: data, shop }) as any);
+  const buffer = await renderToBuffer(createElement(QuotationPDF, { quotation: data, shop, logoSrc }) as any);
   const quotNo = quotation.quotationNo ?? quotation.id.slice(-8).toUpperCase();
   const customer = quotation.customer?.name?.replace(/\s+/g, "-").toLowerCase() ?? "quotation";
 

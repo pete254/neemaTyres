@@ -6,10 +6,11 @@ import { notFound } from "next/navigation";
 import { getSaleById } from "@/lib/queries/saleById";
 import { getShopInfo } from "@/lib/shopInfo";
 import { InvoicePDF } from "@/lib/pdf/InvoicePDF";
+import { getLogoDataUri } from "@/lib/pdf/logoImage";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [sale, shop] = await Promise.all([getSaleById(id), getShopInfo()]);
+  const [sale, shop, logoSrc] = await Promise.all([getSaleById(id), getShopInfo(), Promise.resolve(getLogoDataUri())]);
   if (!sale) return notFound();
 
   const data = {
@@ -21,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buffer = await renderToBuffer(createElement(InvoicePDF, { sale: data, shop }) as any);
+  const buffer = await renderToBuffer(createElement(InvoicePDF, { sale: data, shop, logoSrc }) as any);
   const invoiceNo = sale.invoiceNo ?? sale.id.slice(-8).toUpperCase();
   const customer = sale.customer?.name?.replace(/\s+/g, "-").toLowerCase() ?? "walk-in";
 

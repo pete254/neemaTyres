@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import Decimal from "decimal.js";
 import {
@@ -136,7 +137,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Dashboard</h2>
+      <div className="flex items-center gap-3 mb-6">
+        <Image src="/tyre-logo.jpg" alt="Kwambira Tyres" width={48} height={48} className="rounded-full object-cover" priority />
+        <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+      </div>
 
       {/* Today */}
       <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">

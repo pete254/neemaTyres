@@ -1,4 +1,4 @@
-import { Document, Page, View, Text } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import { base, fmt, GRAY, PURPLE, RED } from "./styles";
 import { toWords } from "@/lib/numberToWords";
 import type { ShopInfoData as ShopInfo } from "@/lib/shopInfo";
@@ -22,7 +22,7 @@ interface Sale {
   recordedBy: { name: string } | null;
 }
 
-export function InvoicePDF({ sale, shop }: { sale: Sale; shop: ShopInfo }) {
+export function InvoicePDF({ sale, shop, logoSrc }: { sale: Sale; shop: ShopInfo; logoSrc?: string }) {
   const total = Number(sale.totalAmount);
   const invoiceNo = sale.invoiceNo ?? sale.id.slice(-8).toUpperCase();
   const dateStr = new Date(sale.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
@@ -34,15 +34,18 @@ export function InvoicePDF({ sale, shop }: { sale: Sale; shop: ShopInfo }) {
       <Page size="A4" style={base.page}>
         {/* Header */}
         <View style={base.headerRow}>
-          <View>
-            {shop.name
-              ? <Text style={base.shopName}>{shop.name}</Text>
-              : <Text style={[base.shopDetail, { fontStyle: "italic" }]}>Shop name not configured</Text>}
-            {shop.poBox    && <Text style={base.shopDetail}>{shop.poBox}</Text>}
-            {shop.address  && <Text style={base.shopDetail}>{shop.address}</Text>}
-            {shop.town     && <Text style={base.shopDetail}>{[shop.town, shop.county, shop.country].filter(Boolean).join(", ")}</Text>}
-            {shop.email    && <Text style={base.shopDetail}>Email: {shop.email}</Text>}
-            {shop.phone    && <Text style={base.shopDetail}>Phone: {shop.phone}</Text>}
+          <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+            {logoSrc && <Image src={logoSrc} style={{ width: 46, height: 46, marginRight: 10 }} />}
+            <View>
+              {shop.name
+                ? <Text style={base.shopName}>{shop.name}</Text>
+                : <Text style={[base.shopDetail, { fontStyle: "italic" }]}>Shop name not configured</Text>}
+              {shop.poBox    && <Text style={base.shopDetail}>{shop.poBox}</Text>}
+              {shop.address  && <Text style={base.shopDetail}>{shop.address}</Text>}
+              {shop.town     && <Text style={base.shopDetail}>{[shop.town, shop.county, shop.country].filter(Boolean).join(", ")}</Text>}
+              {shop.email    && <Text style={base.shopDetail}>Email: {shop.email}</Text>}
+              {shop.phone    && <Text style={base.shopDetail}>Phone: {shop.phone}</Text>}
+            </View>
           </View>
           <View>
             <Text style={base.docType}>Invoice</Text>

@@ -1,4 +1,4 @@
-import { Document, Page, View, Text } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import { base, fmt, GRAY, PURPLE } from "./styles";
 import { toWords } from "@/lib/numberToWords";
 import type { ShopInfoData as ShopInfo } from "@/lib/shopInfo";
@@ -16,7 +16,7 @@ interface Quotation {
   createdBy: { name: string } | null;
 }
 
-export function QuotationPDF({ quotation, shop }: { quotation: Quotation; shop: ShopInfo }) {
+export function QuotationPDF({ quotation, shop, logoSrc }: { quotation: Quotation; shop: ShopInfo; logoSrc?: string }) {
   const quotNo = quotation.quotationNo ?? quotation.id.slice(-8).toUpperCase();
   const dateStr = new Date(quotation.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
   const validUntil = new Date(quotation.date);
@@ -30,12 +30,18 @@ export function QuotationPDF({ quotation, shop }: { quotation: Quotation; shop: 
   return (
     <Document title={`Quotation ${quotNo}`}>
       <Page size="A4" style={base.page}>
-        {/* Centered title block */}
-        <View style={{ alignItems: "center", borderBottomWidth: 2, borderBottomColor: PURPLE, paddingBottom: 12, marginBottom: 18 }}>
-          <Text style={{ fontSize: 22, fontFamily: "Helvetica-Bold", color: PURPLE, textTransform: "uppercase", letterSpacing: 2 }}>Quotation</Text>
-          <Text style={{ fontSize: 8, color: GRAY, marginTop: 4 }}>
-            No: {quotNo}  ·  Date: {dateStr}  ·  Valid until: {validStr}
-          </Text>
+        {/* Header with logo + title */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 2, borderBottomColor: PURPLE, paddingBottom: 12, marginBottom: 18 }}>
+          {logoSrc
+            ? <Image src={logoSrc} style={{ width: 50, height: 50 }} />
+            : <View style={{ width: 50 }} />}
+          <View style={{ alignItems: "center", flex: 1 }}>
+            <Text style={{ fontSize: 22, fontFamily: "Helvetica-Bold", color: PURPLE, textTransform: "uppercase", letterSpacing: 2 }}>Quotation</Text>
+            <Text style={{ fontSize: 8, color: GRAY, marginTop: 4 }}>
+              No: {quotNo}  ·  Date: {dateStr}  ·  Valid until: {validStr}
+            </Text>
+          </View>
+          <View style={{ width: 50 }} />
         </View>
 
         {/* Two-panel: From | For */}

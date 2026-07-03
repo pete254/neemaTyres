@@ -1,4 +1,4 @@
-import { Document, Page, View, Text } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import { fmt, GRAY, LIGHT, PURPLE, RED } from "./styles";
 import type { ShopInfoData as ShopInfo } from "@/lib/shopInfo";
 import Decimal from "decimal.js";
@@ -28,7 +28,7 @@ const FONT = 9.5;
 const HEADER_FONT = 9;
 const PAD = 16; // reduced horizontal page margin
 
-export function StockReportPDF({ variants, shop, printDate }: { variants: Variant[]; shop: ShopInfo; printDate: string }) {
+export function StockReportPDF({ variants, shop, printDate, logoSrc }: { variants: Variant[]; shop: ShopInfo; printDate: string; logoSrc?: string }) {
   const totalQty = variants.reduce((s, v) => s + v.qtyOnHand, 0);
   const totalValue = variants.reduce(
     (s, v) => s.plus(new Decimal(v.qtyOnHand).mul(v.wacCost.toString())),
@@ -54,13 +54,16 @@ export function StockReportPDF({ variants, shop, printDate }: { variants: Varian
 
         {/* Header */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", borderBottomWidth: 2, borderBottomColor: PURPLE, paddingBottom: 10, marginBottom: 12 }}>
-          <View>
-            {shop.name
-              ? <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: "#111827", marginBottom: 2 }}>{shop.name}</Text>
-              : <Text style={{ fontSize: 9, color: GRAY, fontStyle: "italic" }}>Shop name not configured</Text>}
-            {shop.address && <Text style={{ fontSize: 8.5, color: GRAY, marginBottom: 1 }}>{shop.address}</Text>}
-            {shop.town    && <Text style={{ fontSize: 8.5, color: GRAY, marginBottom: 1 }}>{shop.town}</Text>}
-            {shop.phone   && <Text style={{ fontSize: 8.5, color: GRAY }}>{shop.phone}</Text>}
+          <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+            {logoSrc && <Image src={logoSrc} style={{ width: 44, height: 44, marginRight: 10 }} />}
+            <View>
+              {shop.name
+                ? <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: "#111827", marginBottom: 2 }}>{shop.name}</Text>
+                : <Text style={{ fontSize: 9, color: GRAY, fontStyle: "italic" }}>Shop name not configured</Text>}
+              {shop.address && <Text style={{ fontSize: 8.5, color: GRAY, marginBottom: 1 }}>{shop.address}</Text>}
+              {shop.town    && <Text style={{ fontSize: 8.5, color: GRAY, marginBottom: 1 }}>{shop.town}</Text>}
+              {shop.phone   && <Text style={{ fontSize: 8.5, color: GRAY }}>{shop.phone}</Text>}
+            </View>
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={{ fontSize: 20, fontFamily: "Helvetica-Bold", color: PURPLE, textTransform: "uppercase" }}>Stock Report</Text>
