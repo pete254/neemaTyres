@@ -1,12 +1,11 @@
 import { signIn } from "@/auth";
-import { redirect } from "next/navigation";
 import PasswordInput from "./PasswordInput";
 
 export default function LoginPage() {
   async function handleLogin(formData: FormData) {
     "use server";
     await signIn("credentials", {
-      email: formData.get("email"),
+      name: formData.get("name"),
       password: formData.get("password"),
       redirectTo: "/dashboard",
     });
@@ -21,11 +20,12 @@ export default function LoginPage() {
         <p className="text-zinc-400 mb-6 text-sm">Management System</p>
         <form action={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm text-zinc-300 mb-1">Email</label>
+            <label className="block text-sm text-zinc-300 mb-1">Name</label>
             <input
-              name="email"
-              type="email"
+              name="name"
+              type="text"
               required
+              autoComplete="username"
               className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white focus:outline-none focus:border-[#EAB308]"
             />
           </div>

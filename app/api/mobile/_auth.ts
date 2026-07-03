@@ -5,19 +5,20 @@ const secret = new TextEncoder().encode(process.env.AUTH_SECRET!);
 
 export async function verifyMobileToken(
   req: NextRequest
-): Promise<{ userId: string; email: string }> {
+): Promise<{ userId: string; name: string }> {
   const header = req.headers.get("Authorization");
   if (!header?.startsWith("Bearer ")) throw new Error("missing_token");
   const token = header.slice(7);
   const { payload } = await jwtVerify(token, secret);
-  if (typeof payload.userId !== "string" || typeof payload.email !== "string") {
+  if (typeof payload.userId !== "string") {
     throw new Error("invalid_payload");
   }
-  return { userId: payload.userId, email: payload.email };
+  const name = typeof payload.name === "string" ? payload.name : (payload.email as string ?? "");
+  return { userId: payload.userId, name };
 }
 
-export async function signMobileToken(userId: string, email: string): Promise<string> {
-  return new SignJWT({ userId, email })
+export async function signMobileToken(userId: string, name: string): Promise<string> {
+  return new SignJWT({ userId, name })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")

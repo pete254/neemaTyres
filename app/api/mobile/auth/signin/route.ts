@@ -7,32 +7,30 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = (await req.json()) as {
-      email?: string;
+    const { name, password } = (await req.json()) as {
+      name?: string;
       password?: string;
     };
 
-    if (!email || !password) {
-      return Response.json({ error: "email and password are required" }, { status: 400 });
+    if (!name || !password) {
+      return Response.json({ error: "name and password are required" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { name } });
     if (!user) {
-      console.error("[mobile/signin] no user found for email:", email);
       return Response.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      console.error("[mobile/signin] wrong password for email:", email);
       return Response.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    const token = await signMobileToken(user.id, user.email);
+    const token = await signMobileToken(user.id, user.name);
 
     return Response.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, name: user.name, email: user.email ?? "" },
     });
   } catch (err) {
     console.error("[mobile/auth/signin]", err);
