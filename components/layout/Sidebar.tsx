@@ -53,21 +53,18 @@ export default function Sidebar({ userName }: SidebarProps) {
   return (
     <aside className="w-56 flex-shrink-0 bg-[#111111] border-r border-[#2A2A2A] flex flex-col">
       {/* Header */}
-      <div className="px-4 py-4 border-b border-[#2A2A2A] flex items-center gap-3">
+      <div className="px-4 py-4 border-b border-[#2A2A2A] flex flex-col items-center gap-2">
         <Image
           src="/tyre-logo.jpg"
           alt="Kwambira Tyres"
-          width={40}
-          height={40}
-          className="rounded-full object-cover flex-shrink-0"
+          width={72}
+          height={72}
+          className="rounded-full object-cover"
           priority
         />
-        <div>
-          <h1 className="text-sm font-bold text-[#EAB308] leading-tight">
-            Kwambira Tyres
-          </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Neema Tyres</p>
-        </div>
+        <h1 className="text-sm font-bold text-[#EAB308] leading-tight text-center">
+          Kwambira Tyres
+        </h1>
       </div>
 
       {/* Nav */}
