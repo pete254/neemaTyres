@@ -5,6 +5,7 @@ import type { ShopInfoData as ShopInfo } from "@/lib/shopInfo";
 interface Line { id: string; qty: number; variant: { brand: { name: string }; sizeCanonical: string; subLabel: string | null }; }
 interface Sale {
   id: string;
+  invoiceNo?: string | null;
   date: Date | string;
   customer: { name: string; phone?: string | null; address?: string | null; town?: string | null; poBox?: string | null } | null;
   lines: Line[];
@@ -12,7 +13,7 @@ interface Sale {
 }
 
 export function DeliveryNotePDF({ sale, shop }: { sale: Sale; shop: ShopInfo }) {
-  const docNo = sale.id.slice(-8).toUpperCase();
+  const docNo = sale.invoiceNo ?? sale.id.slice(-8).toUpperCase();
   const dateStr = new Date(sale.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
 
   const COL = { num: "5%", item: "65%", qty: "15%", recv: "15%" };

@@ -193,6 +193,7 @@ model PurchaseLine {
 
 model Sale {
   id           String    @id @default(cuid())
+  invoiceNo    String?   @unique
   customerId   String?
   customer     Customer? @relation(fields: [customerId], references: [id])
   date         DateTime
@@ -364,6 +365,7 @@ model ShopInfo {
 
 model Quotation {
   id          String    @id @default(cuid())
+  quotationNo String?   @unique
   customerId  String?
   customer    Customer? @relation(fields: [customerId], references: [id])
   date        DateTime

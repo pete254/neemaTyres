@@ -10,6 +10,7 @@ export interface SaleLine {
 
 export interface SaleGroup {
   saleId: string;
+  invoiceNo: string | null;
   customerId: string | null;
   customerName: string | null;
   total: Decimal;
@@ -109,6 +110,7 @@ export async function getSalesBetween(
         const channels = [...new Set(sale.payments.map((p) => p.channel))].join(", ");
         return {
           saleId: sale.id,
+          invoiceNo: sale.invoiceNo ?? null,
           customerId: sale.customerId,
           customerName: sale.customer?.name ?? null,
           total,

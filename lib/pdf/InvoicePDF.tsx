@@ -13,6 +13,7 @@ interface Line {
 interface Payment { id: string; channel: string; amount: string | number; }
 interface Sale {
   id: string;
+  invoiceNo?: string | null;
   date: Date | string;
   totalAmount: string | number;
   customer: { name: string; phone?: string | null; email?: string | null; address?: string | null; town?: string | null; poBox?: string | null } | null;
@@ -23,7 +24,7 @@ interface Sale {
 
 export function InvoicePDF({ sale, shop }: { sale: Sale; shop: ShopInfo }) {
   const total = Number(sale.totalAmount);
-  const invoiceNo = sale.id.slice(-8).toUpperCase();
+  const invoiceNo = sale.invoiceNo ?? sale.id.slice(-8).toUpperCase();
   const dateStr = new Date(sale.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
 
   const COL = { num: "4%", item: "42%", qty: "10%", rate: "22%", amount: "22%" };

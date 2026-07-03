@@ -41,8 +41,13 @@ export async function postSale(input: PostSaleInput) {
   }
 
   return prisma.$transaction(async (tx) => {
+    const year = input.date.getFullYear();
+    const existingCount = await tx.sale.count({ where: { invoiceNo: { startsWith: `${year}-` } } });
+    const invoiceNo = `${year}-${String(existingCount + 1).padStart(3, "0")}`;
+
     const sale = await tx.sale.create({
       data: {
+        invoiceNo,
         customerId: input.customerId ?? null,
         date: input.date,
         totalAmount: linesTotal.toDecimalPlaces(2),

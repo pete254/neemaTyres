@@ -31,8 +31,13 @@ export async function createQuotation(formData: FormData) {
     };
   });
 
+  const year = date.getFullYear();
+  const existingCount = await prisma.quotation.count({ where: { quotationNo: { startsWith: `Q${year}-` } } });
+  const quotationNo = `Q${year}-${String(existingCount + 1).padStart(3, "0")}`;
+
   const quotation = await prisma.quotation.create({
     data: {
+      quotationNo,
       customerId,
       date,
       validDays,

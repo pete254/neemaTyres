@@ -7,6 +7,7 @@ import Decimal from "decimal.js";
 interface Line { id: string; description: string; qty: number; unitPrice: string | number; lineTotal: string | number; }
 interface Quotation {
   id: string;
+  quotationNo?: string | null;
   date: Date | string;
   validDays: number;
   note: string | null;
@@ -16,7 +17,7 @@ interface Quotation {
 }
 
 export function QuotationPDF({ quotation, shop }: { quotation: Quotation; shop: ShopInfo }) {
-  const quotNo = quotation.id.slice(-8).toUpperCase();
+  const quotNo = quotation.quotationNo ?? quotation.id.slice(-8).toUpperCase();
   const dateStr = new Date(quotation.date).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" });
   const validUntil = new Date(quotation.date);
   validUntil.setDate(validUntil.getDate() + quotation.validDays);
