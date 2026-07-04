@@ -40,10 +40,13 @@ export async function POST(req: NextRequest) {
     update: {},
   });
 
+  const sizeInput = (body.sizeBucket as string | undefined)?.trim();
+  const sizeBucket = sizeInput || deriveSizeBucket(sizeCanonical);
+
   const variant = await prisma.productVariant.create({
     data: {
       sizeCanonical,
-      sizeBucket: deriveSizeBucket(sizeCanonical),
+      sizeBucket,
       position: position as any,
       subLabel: body.subLabel?.trim() || null,
       patternCode: body.patternCode?.trim() || null,

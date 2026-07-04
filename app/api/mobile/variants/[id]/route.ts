@@ -27,6 +27,7 @@ export async function GET(
   return ok({
     id: variant.id,
     brandName: variant.brand.name,
+    sizeBucket: variant.sizeBucket,
     sizeCanonical: variant.sizeCanonical,
     position: variant.position,
     subLabel: variant.subLabel,
@@ -61,11 +62,14 @@ export async function PATCH(
     update: {},
   });
 
+  const sizeInput = (body.sizeBucket as string | undefined)?.trim();
+  const sizeBucket = sizeInput || deriveSizeBucket(sizeCanonical);
+
   const variant = await prisma.productVariant.update({
     where: { id },
     data: {
       sizeCanonical,
-      sizeBucket: deriveSizeBucket(sizeCanonical),
+      sizeBucket,
       position: position as any,
       subLabel: body.subLabel?.trim() || null,
       patternCode: body.patternCode?.trim() || null,
@@ -79,4 +83,48 @@ export async function PATCH(
     { source: "mobile" });
 
   return ok(variant);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  let userId: string;
+  try { ({ userId } = await verifyMobileToken(req)); } catch { return unauthorized(); }
+
+  const { id } = await params;
+
+  const variant = await prisma.productVariant.findUnique({
+    where: { id },
+    include: {
+      brand: { select: { name: true } },
+      saleLines: { take: 1, select: { id: true } },
+      purchaseLines: { take: 1, select: { id: true } },
+      returns: { take: 1, select: { id: true } },
+      openingBalanceEntries: { take: 1, select: { id: true } },
+    },
+  });
+
+  if (!variant) return Response.json({ error: "Not found" }, { status: 404 });
+
+  const hasHistory =
+    variant.saleLines.length > 0 ||
+    variant.purchaseLines.length > 0 ||
+    variant.returns.length > 0 ||
+    variant.openingBalanceEntries.length > 0;
+
+  if (hasHistory) {
+    return Response.json(
+      { error: "Cannot delete — this tyre has sales, purchases, returns, or opening stock records linked to it." },
+      { status: 409 }
+    );
+  }
+
+  await prisma.productVariant.delete({ where: { id } });
+
+  await logAction(userId, "DELETE_VARIANT", "ProductVariant", id,
+    `Deleted ${variant.sizeCanonical} ${variant.brand.name} [${variant.position}] via mobile`,
+    { source: "mobile" });
+
+  return ok({ deleted: true });
 }
