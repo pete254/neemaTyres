@@ -35,7 +35,7 @@ export default function EditVariantForm({ action, brands, variant }: Props) {
       </div>
 
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Size Canonical</label>
+        <label className="block text-sm text-zinc-300 mb-1">Name</label>
         <input
           name="sizeCanonical"
           required

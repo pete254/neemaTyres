@@ -29,14 +29,14 @@ export default async function NewVariantPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-zinc-300 mb-1">Size Canonical</label>
+          <label className="block text-sm text-zinc-300 mb-1">Name</label>
           <input
             name="sizeCanonical"
             required
             placeholder="e.g. 315/80R22.5 or 11R22.5"
             className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
           />
-          <p className="text-xs text-zinc-500 mt-1">Rim size is auto-derived from this (the part after R)</p>
+          <p className="text-xs text-zinc-500 mt-1">Full tyre size — rim size is auto-derived from this</p>
         </div>
 
         <div>
