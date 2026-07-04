@@ -9,46 +9,50 @@ import { upsertCustomerByName } from "@/lib/domain/customer";
 import { logAction } from "@/lib/audit";
 
 export async function createSale(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  try {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Not authenticated");
 
-  const linesRaw = JSON.parse(formData.get("lines") as string);
-  const paymentsRaw = JSON.parse(formData.get("payments") as string);
-  let customerId = (formData.get("customerId") as string) || null;
-  const walkinName = (formData.get("walkinName") as string)?.trim() || null;
-  const walkinPhone = (formData.get("walkinPhone") as string)?.trim() || null;
-  const date = new Date(formData.get("date") as string);
+    const linesRaw = JSON.parse(formData.get("lines") as string);
+    const paymentsRaw = JSON.parse(formData.get("payments") as string);
+    let customerId = (formData.get("customerId") as string) || null;
+    const walkinName = (formData.get("walkinName") as string)?.trim() || null;
+    const walkinPhone = (formData.get("walkinPhone") as string)?.trim() || null;
+    const date = new Date(formData.get("date") as string);
 
-  // If a walk-in name was provided, upsert a customer record
-  if (!customerId && walkinName) {
-    customerId = await upsertCustomerByName(walkinName, walkinPhone, session.user.id);
+    if (!customerId && walkinName) {
+      customerId = await upsertCustomerByName(walkinName, walkinPhone, session.user.id);
+    }
+
+    const lines = linesRaw.map((l: { variantId: string; qty: string; unitPrice: string }) => ({
+      variantId: l.variantId,
+      qty: Number(l.qty),
+      unitPrice: new Decimal(l.unitPrice),
+    }));
+    const payments = paymentsRaw.map((p: { channel: string; amount: string }) => ({
+      channel: p.channel as "CASH" | "MPESA" | "DEBT",
+      amount: new Decimal(p.amount),
+    }));
+
+    const sale = await postSale({
+      customerId: customerId || undefined,
+      date,
+      recordedById: session.user.id,
+      lines,
+      payments,
+    });
+
+    await logAction(session.user.id, "CREATE_SALE", "Sale", sale.id,
+      `Sale of ${lines.length} line(s), total KES ${sale.totalAmount}`,
+      { totalAmount: sale.totalAmount.toString(), lineCount: lines.length });
+
+    revalidatePath("/inventory");
+    revalidatePath("/debtors");
+    revalidatePath("/customers");
+  } catch (err) {
+    console.error("[createSale] ERROR:", err);
+    throw err;
   }
-
-  const lines = linesRaw.map((l: { variantId: string; qty: string; unitPrice: string }) => ({
-    variantId: l.variantId,
-    qty: Number(l.qty),
-    unitPrice: new Decimal(l.unitPrice),
-  }));
-  const payments = paymentsRaw.map((p: { channel: string; amount: string }) => ({
-    channel: p.channel as "CASH" | "MPESA" | "DEBT",
-    amount: new Decimal(p.amount),
-  }));
-
-  const sale = await postSale({
-    customerId: customerId || undefined,
-    date,
-    recordedById: session.user.id,
-    lines,
-    payments,
-  });
-
-  await logAction(session.user.id, "CREATE_SALE", "Sale", sale.id,
-    `Sale of ${lines.length} line(s), total KES ${sale.totalAmount}`,
-    { totalAmount: sale.totalAmount.toString(), lineCount: lines.length });
-
-  revalidatePath("/inventory");
-  revalidatePath("/debtors");
-  revalidatePath("/customers");
   redirect("/sales/new?success=1");
 }
 
