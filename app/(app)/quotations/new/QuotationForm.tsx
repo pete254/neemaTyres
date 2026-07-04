@@ -1,19 +1,49 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, useMemo } from "react";
 import { createQuotation } from "@/lib/actions/quotation";
 
 interface Customer { id: string; name: string; }
+interface Variant {
+  id: string;
+  sizeCanonical: string;
+  sizeBucket: string;
+  position: string;
+  subLabel: string | null;
+  patternCode: string | null;
+  referenceSellPrice: string | null;
+  brand: { name: string };
+}
 interface Line { description: string; qty: string; unitPrice: string; }
 
 const inputClass = "w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]";
+const selectClass = "w-full bg-[#111] border border-[#2A2A2A] rounded px-3 py-1.5 text-zinc-400 text-xs focus:outline-none focus:border-[#EAB308]";
 
 function today() { return new Date().toISOString().slice(0, 10); }
 
-export default function QuotationForm({ customers }: { customers: Customer[] }) {
+function variantLabel(v: Variant): string {
+  const parts: string[] = [`${v.sizeCanonical} — ${v.brand.name}`];
+  if (v.position && v.position !== "NONE") parts.push(`· ${v.position}`);
+  if (v.subLabel) parts.push(`· ${v.subLabel}`);
+  if (v.patternCode) parts.push(`(${v.patternCode})`);
+  return parts.join(" ");
+}
+
+export default function QuotationForm({
+  customers,
+  variants,
+}: {
+  customers: Customer[];
+  variants: Variant[];
+}) {
   const [lines, setLines] = useState<Line[]>([{ description: "", qty: "1", unitPrice: "" }]);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
+
+  const buckets = useMemo(
+    () => Array.from(new Set(variants.map((v) => v.sizeBucket))).sort((a, b) => parseFloat(b) - parseFloat(a)),
+    [variants]
+  );
 
   function addLine() {
     setLines((l) => [...l, { description: "", qty: "1", unitPrice: "" }]);
@@ -23,6 +53,15 @@ export default function QuotationForm({ customers }: { customers: Customer[] }) 
   }
   function updateLine(i: number, field: keyof Line, value: string) {
     setLines((l) => l.map((line, idx) => idx === i ? { ...line, [field]: value } : line));
+  }
+  function pickVariant(i: number, variantId: string) {
+    const v = variants.find((x) => x.id === variantId);
+    if (!v) return;
+    const desc = variantLabel(v);
+    const price = v.referenceSellPrice ? parseFloat(v.referenceSellPrice).toFixed(2) : "";
+    setLines((l) => l.map((line, idx) =>
+      idx === i ? { ...line, description: desc, unitPrice: price } : line
+    ));
   }
 
   const total = lines.reduce((sum, l) => {
@@ -67,21 +106,40 @@ export default function QuotationForm({ customers }: { customers: Customer[] }) 
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Items</p>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="grid grid-cols-12 gap-2 text-xs text-zinc-500 px-1">
             <span className="col-span-6">Description</span>
             <span className="col-span-2 text-center">Qty</span>
             <span className="col-span-3 text-right">Unit Price (KES)</span>
           </div>
           {lines.map((line, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2 items-center">
-              <input
-                placeholder={`Item ${i + 1} description`}
-                value={line.description}
-                onChange={(e) => updateLine(i, "description", e.target.value)}
-                required
-                className="col-span-6 bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-              />
+            <div key={i} className="grid grid-cols-12 gap-2 items-start">
+              <div className="col-span-6 space-y-1">
+                {/* Inventory picker — pre-fills description + price, user can edit after */}
+                <select
+                  value=""
+                  onChange={(e) => { pickVariant(i, e.target.value); e.target.value = ""; }}
+                  className={selectClass}
+                >
+                  <option value="">— pick from stock —</option>
+                  {buckets.map((bucket) => (
+                    <optgroup key={bucket} label={`${bucket}"`}>
+                      {variants
+                        .filter((v) => v.sizeBucket === bucket)
+                        .map((v) => (
+                          <option key={v.id} value={v.id}>{variantLabel(v)}</option>
+                        ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <input
+                  placeholder={`Item ${i + 1} description`}
+                  value={line.description}
+                  onChange={(e) => updateLine(i, "description", e.target.value)}
+                  required
+                  className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
+                />
+              </div>
               <input
                 type="number" min="1" step="1"
                 value={line.qty}
@@ -101,7 +159,7 @@ export default function QuotationForm({ customers }: { customers: Customer[] }) 
                 type="button"
                 onClick={() => removeLine(i)}
                 disabled={lines.length === 1}
-                className="col-span-1 text-red-500 hover:text-red-300 disabled:opacity-20 text-lg font-bold text-center"
+                className="col-span-1 text-red-500 hover:text-red-300 disabled:opacity-20 text-lg font-bold text-center pt-2"
               >
                 ×
               </button>

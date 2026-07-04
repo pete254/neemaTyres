@@ -1,9 +1,24 @@
-import { getCustomers } from "@/lib/queries";
+import { getCustomers, getVariants } from "@/lib/queries";
 import { getShopInfo } from "@/lib/shopInfo";
 import QuotationForm from "./QuotationForm";
 
 export default async function NewQuotationPage() {
-  const [customers, shop] = await Promise.all([getCustomers(), getShopInfo()]);
+  const [customers, variants, shop] = await Promise.all([
+    getCustomers(),
+    getVariants(),
+    getShopInfo(),
+  ]);
+
+  const serialisedVariants = variants.map((v) => ({
+    id: v.id,
+    sizeCanonical: v.sizeCanonical,
+    sizeBucket: v.sizeBucket,
+    position: v.position,
+    subLabel: v.subLabel,
+    patternCode: v.patternCode,
+    referenceSellPrice: v.referenceSellPrice?.toString() ?? null,
+    brand: { name: v.brand.name },
+  }));
 
   return (
     <div className="p-6 max-w-3xl">
@@ -15,7 +30,10 @@ export default async function NewQuotationPage() {
           </a>
         )}
       </div>
-      <QuotationForm customers={customers.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))} />
+      <QuotationForm
+        customers={customers.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))}
+        variants={serialisedVariants}
+      />
     </div>
   );
 }
