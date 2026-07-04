@@ -66,8 +66,13 @@ export async function POST(req: NextRequest) {
 
   const quotDate = body.date ? new Date(body.date) : new Date();
   const year = quotDate.getFullYear();
-  const existingCount = await prisma.quotation.count({ where: { quotationNo: { startsWith: `Q${year}-` } } });
-  const quotationNo = `Q${year}-${String(existingCount + 1).padStart(3, "0")}`;
+  const lastQ = await prisma.quotation.findFirst({
+    where: { quotationNo: { startsWith: `Q${year}-` } },
+    orderBy: { quotationNo: "desc" },
+    select: { quotationNo: true },
+  });
+  const lastQNum = lastQ?.quotationNo ? parseInt(lastQ.quotationNo.split("-")[1], 10) : 0;
+  const quotationNo = `Q${year}-${String(lastQNum + 1).padStart(3, "0")}`;
 
   const quotation = await prisma.quotation.create({
     data: {

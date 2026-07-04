@@ -42,8 +42,13 @@ export async function postSale(input: PostSaleInput) {
 
   return prisma.$transaction(async (tx) => {
     const year = input.date.getFullYear();
-    const existingCount = await tx.sale.count({ where: { invoiceNo: { startsWith: `${year}-` } } });
-    const invoiceNo = `${year}-${String(existingCount + 1).padStart(3, "0")}`;
+    const lastInvoice = await tx.sale.findFirst({
+      where: { invoiceNo: { startsWith: `${year}-` } },
+      orderBy: { invoiceNo: "desc" },
+      select: { invoiceNo: true },
+    });
+    const lastNum = lastInvoice?.invoiceNo ? parseInt(lastInvoice.invoiceNo.split("-")[1], 10) : 0;
+    const invoiceNo = `${year}-${String(lastNum + 1).padStart(3, "0")}`;
 
     const sale = await tx.sale.create({
       data: {
