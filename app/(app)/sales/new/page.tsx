@@ -18,6 +18,7 @@ export default async function NewSalePage({ searchParams }: PageProps) {
     sizeBucket: v.sizeBucket,
     sizeCanonical: v.sizeCanonical,
     position: v.position,
+    subLabel: v.subLabel,
     qtyOnHand: v.qtyOnHand,
     patternCode: v.patternCode,
     wacCost: v.wacCost.toString(),

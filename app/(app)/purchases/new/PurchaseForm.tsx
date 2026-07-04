@@ -15,10 +15,20 @@ interface Variant {
   sizeBucket: string;
   sizeCanonical: string;
   position: string;
+  subLabel: string | null;
   patternCode: string | null;
   wacCost: string;
   qtyOnHand: number;
   brand: { name: string };
+}
+
+function variantLabel(v: Variant): string {
+  const parts: string[] = [`${v.sizeCanonical} — ${v.brand.name}`];
+  if (v.position && v.position !== "NONE") parts.push(`· ${v.position}`);
+  if (v.subLabel) parts.push(`· ${v.subLabel}`);
+  if (v.patternCode) parts.push(`(${v.patternCode})`);
+  parts.push(`· ${v.qtyOnHand} on hand`);
+  return parts.join(" ");
 }
 
 interface Supplier {
@@ -238,9 +248,7 @@ export default function PurchaseForm({
                       </option>
                       {bucketVariants.map((bv) => (
                         <option key={bv.id} value={bv.id}>
-                          {bv.sizeCanonical} — {bv.brand.name} · {bv.position}
-                          {bv.patternCode ? ` (${bv.patternCode})` : ""} ·{" "}
-                          {bv.qtyOnHand} on hand
+                          {variantLabel(bv)}
                         </option>
                       ))}
                     </select>
