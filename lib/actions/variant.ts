@@ -92,3 +92,21 @@ export async function updateVariant(id: string, formData: FormData) {
   revalidatePath("/purchases/new");
   redirect("/inventory");
 }
+
+export async function deleteVariant(id: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not authenticated");
+
+  const variant = await prisma.productVariant.findUniqueOrThrow({
+    where: { id },
+    include: { brand: true },
+  });
+
+  await prisma.productVariant.delete({ where: { id } });
+
+  await logAction(session.user.id, "DELETE_VARIANT", "ProductVariant", id,
+    `Deleted ${variant.sizeCanonical} ${variant.brand.name} [${variant.position}]`);
+
+  revalidatePath("/inventory");
+  redirect("/inventory");
+}

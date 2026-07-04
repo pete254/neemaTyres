@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { updateVariant } from "@/lib/actions/variant";
+import { updateVariant, deleteVariant } from "@/lib/actions/variant";
 import EditVariantForm from "./EditVariantForm";
 
 export default async function EditVariantPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +18,7 @@ export default async function EditVariantPage({ params }: { params: Promise<{ id
   if (!variant) notFound();
 
   const action = updateVariant.bind(null, id);
+  const deleteAction = deleteVariant.bind(null, id);
 
   return (
     <div className="p-6 max-w-lg">
@@ -31,6 +32,7 @@ export default async function EditVariantPage({ params }: { params: Promise<{ id
 
       <EditVariantForm
         action={action}
+        deleteAction={deleteAction}
         brands={brands}
         variant={{
           brand: { name: variant.brand.name },

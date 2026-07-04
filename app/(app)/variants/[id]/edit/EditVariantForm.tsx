@@ -4,6 +4,7 @@ import { useState } from "react";
 
 interface Props {
   action: (formData: FormData) => Promise<void>;
+  deleteAction: () => Promise<void>;
   brands: { id: string; name: string }[];
   variant: {
     brand: { name: string };
@@ -18,8 +19,9 @@ interface Props {
 
 const inputClass = "w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]";
 
-export default function EditVariantForm({ action, brands, variant }: Props) {
+export default function EditVariantForm({ action, deleteAction, brands, variant }: Props) {
   const [confirmed, setConfirmed] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
   return (
     <form action={action} className="space-y-4">
@@ -133,6 +135,32 @@ export default function EditVariantForm({ action, brands, variant }: Props) {
       >
         Save Changes
       </button>
+
+      {/* Delete */}
+      <div className="border border-red-900 bg-red-950/20 rounded-lg p-4 mt-6">
+        <p className="text-red-400 text-sm font-semibold mb-1">Delete Tyre Type</p>
+        <p className="text-red-300/60 text-xs mb-3">
+          This permanently removes the tyre from inventory. Only possible if it has no sales, purchases, or stock history linked to it.
+        </p>
+        <label className="flex items-start gap-3 cursor-pointer mb-3">
+          <input
+            type="checkbox"
+            checked={deleteConfirmed}
+            onChange={(e) => setDeleteConfirmed(e.target.checked)}
+            className="mt-0.5 accent-red-500"
+          />
+          <span className="text-red-300 text-sm">I want to permanently delete this tyre type</span>
+        </label>
+        <form action={deleteAction}>
+          <button
+            type="submit"
+            disabled={!deleteConfirmed}
+            className="w-full bg-red-700 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold rounded py-2 text-sm transition-colors"
+          >
+            Delete Tyre Type
+          </button>
+        </form>
+      </div>
     </form>
   );
 }
