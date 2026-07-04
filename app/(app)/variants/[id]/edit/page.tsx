@@ -4,8 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { updateVariant, deleteVariant } from "@/lib/actions/variant";
 import EditVariantForm from "./EditVariantForm";
 
-export default async function EditVariantPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditVariantPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ deleteError?: string }>;
+}) {
   const { id } = await params;
+  const { deleteError } = await searchParams;
 
   const [variant, brands] = await Promise.all([
     prisma.productVariant.findUnique({
@@ -33,6 +40,7 @@ export default async function EditVariantPage({ params }: { params: Promise<{ id
       <EditVariantForm
         action={action}
         deleteAction={deleteAction}
+        deleteError={!!deleteError}
         brands={brands}
         variant={{
           brand: { name: variant.brand.name },

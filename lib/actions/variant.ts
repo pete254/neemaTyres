@@ -99,8 +99,24 @@ export async function deleteVariant(id: string) {
 
   const variant = await prisma.productVariant.findUniqueOrThrow({
     where: { id },
-    include: { brand: true },
+    include: {
+      brand: true,
+      saleLines: { take: 1, select: { id: true } },
+      purchaseLines: { take: 1, select: { id: true } },
+      returns: { take: 1, select: { id: true } },
+      openingBalanceEntries: { take: 1, select: { id: true } },
+    },
   });
+
+  const hasHistory =
+    variant.saleLines.length > 0 ||
+    variant.purchaseLines.length > 0 ||
+    variant.returns.length > 0 ||
+    variant.openingBalanceEntries.length > 0;
+
+  if (hasHistory) {
+    redirect(`/variants/${id}/edit?deleteError=1`);
+  }
 
   await prisma.productVariant.delete({ where: { id } });
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 interface Props {
   action: (formData: FormData) => Promise<void>;
   deleteAction: () => Promise<void>;
+  deleteError?: boolean;
   brands: { id: string; name: string }[];
   variant: {
     brand: { name: string };
@@ -19,7 +20,7 @@ interface Props {
 
 const inputClass = "w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]";
 
-export default function EditVariantForm({ action, deleteAction, brands, variant }: Props) {
+export default function EditVariantForm({ action, deleteAction, deleteError, brands, variant }: Props) {
   const [confirmed, setConfirmed] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
@@ -139,9 +140,15 @@ export default function EditVariantForm({ action, deleteAction, brands, variant 
       {/* Delete */}
       <div className="border border-red-900 bg-red-950/20 rounded-lg p-4 mt-6">
         <p className="text-red-400 text-sm font-semibold mb-1">Delete Tyre Type</p>
-        <p className="text-red-300/60 text-xs mb-3">
-          This permanently removes the tyre from inventory. Only possible if it has no sales, purchases, or stock history linked to it.
-        </p>
+        {deleteError ? (
+          <p className="text-red-300 text-sm bg-red-900/30 border border-red-800 rounded px-3 py-2 mb-3">
+            Cannot delete — this tyre has sales, purchases, returns, or opening stock records linked to it. Remove those records first.
+          </p>
+        ) : (
+          <p className="text-red-300/60 text-xs mb-3">
+            This permanently removes the tyre from inventory. Only possible if it has no sales, purchases, or stock history.
+          </p>
+        )}
         <label className="flex items-start gap-3 cursor-pointer mb-3">
           <input
             type="checkbox"
