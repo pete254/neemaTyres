@@ -34,6 +34,7 @@ export default async function EditVariantPage({ params }: { params: Promise<{ id
         brands={brands}
         variant={{
           brand: { name: variant.brand.name },
+          sizeBucket: variant.sizeBucket,
           sizeCanonical: variant.sizeCanonical,
           position: variant.position,
           subLabel: variant.subLabel,

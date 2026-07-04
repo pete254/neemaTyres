@@ -7,6 +7,7 @@ interface Props {
   brands: { id: string; name: string }[];
   variant: {
     brand: { name: string };
+    sizeBucket: string;
     sizeCanonical: string;
     position: string;
     subLabel: string | null;
@@ -15,19 +16,44 @@ interface Props {
   };
 }
 
+const inputClass = "w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]";
+
 export default function EditVariantForm({ action, brands, variant }: Props) {
   const [confirmed, setConfirmed] = useState(false);
 
   return (
     <form action={action} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-zinc-300 mb-1">Size</label>
+          <input
+            name="sizeBucket"
+            defaultValue={variant.sizeBucket}
+            placeholder="e.g. 22.5, 16, 19.5"
+            className={inputClass}
+          />
+          <p className="text-xs text-zinc-500 mt-1">Rim size bucket</p>
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-300 mb-1">Name</label>
+          <input
+            name="sizeCanonical"
+            required
+            defaultValue={variant.sizeCanonical}
+            className={inputClass}
+          />
+          <p className="text-xs text-zinc-500 mt-1">Changing this affects all historical records</p>
+        </div>
+      </div>
+
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Brand Name</label>
+        <label className="block text-sm text-zinc-300 mb-1">Brand</label>
         <input
           name="brandName"
           required
           list="brand-list"
           defaultValue={variant.brand.name}
-          className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
+          className={inputClass}
         />
         <datalist id="brand-list">
           {brands.map((b) => <option key={b.id} value={b.name} />)}
@@ -35,23 +61,12 @@ export default function EditVariantForm({ action, brands, variant }: Props) {
       </div>
 
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Name</label>
-        <input
-          name="sizeCanonical"
-          required
-          defaultValue={variant.sizeCanonical}
-          className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-        />
-        <p className="text-xs text-zinc-500 mt-1">Changing this affects all historical records for this tyre</p>
-      </div>
-
-      <div>
-        <label className="block text-sm text-zinc-300 mb-1">Position</label>
+        <label className="block text-sm text-zinc-300 mb-1">Pos</label>
         <select
           name="position"
           required
           defaultValue={variant.position}
-          className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
+          className={inputClass}
         >
           <option value="AP">AP (All Position)</option>
           <option value="DIFF">DIFF (Drive/Diff)</option>
@@ -60,28 +75,29 @@ export default function EditVariantForm({ action, brands, variant }: Props) {
         </select>
       </div>
 
-      <div>
-        <label className="block text-sm text-zinc-300 mb-1">Sub Label <span className="text-zinc-500">(optional)</span></label>
-        <input
-          name="subLabel"
-          defaultValue={variant.subLabel ?? ""}
-          placeholder="e.g. Drive, Trailer"
-          className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-zinc-300 mb-1">Sub <span className="text-zinc-500">(optional)</span></label>
+          <input
+            name="subLabel"
+            defaultValue={variant.subLabel ?? ""}
+            placeholder="e.g. Drive, Trailer"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-zinc-300 mb-1">Pattern <span className="text-zinc-500">(optional)</span></label>
+          <input
+            name="patternCode"
+            defaultValue={variant.patternCode ?? ""}
+            placeholder="e.g. MA668"
+            className={inputClass}
+          />
+        </div>
       </div>
 
       <div>
-        <label className="block text-sm text-zinc-300 mb-1">Pattern Code <span className="text-zinc-500">(optional)</span></label>
-        <input
-          name="patternCode"
-          defaultValue={variant.patternCode ?? ""}
-          placeholder="e.g. MA668"
-          className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm text-zinc-300 mb-1">Reference Sell Price (KES) <span className="text-zinc-500">(optional)</span></label>
+        <label className="block text-sm text-zinc-300 mb-1">Sell Ref (KES) <span className="text-zinc-500">(optional)</span></label>
         <input
           name="referenceSellPrice"
           type="number"
@@ -89,7 +105,7 @@ export default function EditVariantForm({ action, brands, variant }: Props) {
           min="0"
           defaultValue={variant.referenceSellPrice ?? ""}
           placeholder="0.00"
-          className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
+          className={inputClass}
         />
       </div>
 

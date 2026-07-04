@@ -21,8 +21,9 @@ export async function createVariant(formData: FormData) {
   const subLabel = (formData.get("subLabel") as string).trim() || null;
   const patternCode = (formData.get("patternCode") as string).trim() || null;
   const refSell = (formData.get("referenceSellPrice") as string).trim();
+  const sizeInput = (formData.get("sizeBucket") as string | null)?.trim();
 
-  const sizeBucket = deriveSizeBucket(sizeCanonical);
+  const sizeBucket = sizeInput || deriveSizeBucket(sizeCanonical);
 
   const brand = await prisma.brand.upsert({
     where: { name: brandName },
@@ -61,8 +62,9 @@ export async function updateVariant(id: string, formData: FormData) {
   const subLabel = (formData.get("subLabel") as string).trim() || null;
   const patternCode = (formData.get("patternCode") as string).trim() || null;
   const refSell = (formData.get("referenceSellPrice") as string).trim();
+  const sizeInput = (formData.get("sizeBucket") as string | null)?.trim();
 
-  const sizeBucket = deriveSizeBucket(sizeCanonical);
+  const sizeBucket = sizeInput || deriveSizeBucket(sizeCanonical);
 
   const brand = await prisma.brand.upsert({
     where: { name: brandName },
