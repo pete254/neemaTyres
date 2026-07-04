@@ -21,7 +21,8 @@ export const authConfig = {
       return token;
     },
     session({ session, token }) {
-      if (token.id) session.user.id = token.id as string;
+      const id = (token.id ?? token.sub) as string | undefined;
+      if (id) session.user.id = id;
       return session;
     },
   },
