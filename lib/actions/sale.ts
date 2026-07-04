@@ -11,7 +11,8 @@ import { logAction } from "@/lib/audit";
 export async function createSale(formData: FormData) {
   try {
     const session = await auth();
-    if (!session?.user?.id) throw new Error("Not authenticated");
+    console.log("[createSale] session:", JSON.stringify({ id: session?.user?.id, name: session?.user?.name, hasUser: !!session?.user }));
+    if (!session?.user?.id) throw new Error("Not authenticated — no session.user.id");
 
     const linesRaw = JSON.parse(formData.get("lines") as string);
     const paymentsRaw = JSON.parse(formData.get("payments") as string);
