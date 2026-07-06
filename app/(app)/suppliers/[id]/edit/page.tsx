@@ -81,18 +81,6 @@ export default async function EditSupplierPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm text-zinc-300 mb-1">Opening Balance (KES)</label>
-          <input
-            name="openingBalance"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={supplier.openingBalance.toString()}
-            className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-          />
-        </div>
-
         <button
           type="submit"
           className="w-full bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded py-2.5 text-sm transition-colors mt-2"

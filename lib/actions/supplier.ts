@@ -13,8 +13,6 @@ export async function createSupplier(formData: FormData) {
   const name = (formData.get("name") as string).trim();
   if (!name) throw new Error("Supplier name is required");
 
-  const openingBalance = (formData.get("openingBalance") as string).trim() || "0";
-
   await prisma.supplier.create({
     data: {
       name,
@@ -23,7 +21,8 @@ export async function createSupplier(formData: FormData) {
       address: str(formData, "address"),
       town: str(formData, "town"),
       poBox: str(formData, "poBox"),
-      openingBalance,
+      // openingBalance is not settable here — an opening payable belongs in the
+      // supplier ledger as an entry, not as a scalar (which nothing reads).
     },
   });
 
@@ -36,8 +35,6 @@ export async function updateSupplier(id: string, formData: FormData) {
   const name = (formData.get("name") as string).trim();
   if (!name) throw new Error("Supplier name is required");
 
-  const openingBalance = (formData.get("openingBalance") as string).trim() || "0";
-
   await prisma.supplier.update({
     where: { id },
     data: {
@@ -47,7 +44,7 @@ export async function updateSupplier(id: string, formData: FormData) {
       address: str(formData, "address"),
       town: str(formData, "town"),
       poBox: str(formData, "poBox"),
-      openingBalance,
+      // openingBalance intentionally left untouched (not edited via this form).
     },
   });
 

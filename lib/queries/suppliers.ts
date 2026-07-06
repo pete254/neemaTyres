@@ -2,7 +2,28 @@ import { prisma } from "@/lib/prisma";
 import Decimal from "decimal.js";
 
 export async function getSuppliers() {
-  return prisma.supplier.findMany({ orderBy: { name: "asc" } });
+  const [suppliers, balances] = await Promise.all([
+    prisma.supplier.findMany({ orderBy: { name: "asc" } }),
+    prisma.ledgerEntry.groupBy({
+      by: ["supplierId"],
+      _sum: { debit: true, credit: true },
+    }),
+  ]);
+
+  // Current balance = Σ debit − Σ credit across the supplier's ledger entries.
+  const balanceById = new Map(
+    balances.map((b) => [
+      b.supplierId,
+      new Decimal(b._sum.debit?.toString() ?? "0").minus(
+        b._sum.credit?.toString() ?? "0"
+      ),
+    ])
+  );
+
+  return suppliers.map((s) => ({
+    ...s,
+    currentBalance: balanceById.get(s.id) ?? new Decimal(0),
+  }));
 }
 
 export async function getSupplierStatement(supplierId: string) {

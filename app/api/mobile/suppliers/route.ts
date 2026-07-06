@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
       name,
       phone: body.phone?.trim() || null,
       email: body.email?.trim() || null,
-      openingBalance: body.openingBalance || "0",
     },
   });
   return ok(supplier);

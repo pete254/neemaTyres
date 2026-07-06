@@ -68,19 +68,6 @@ export default function NewSupplierPage() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm text-zinc-300 mb-1">Opening Balance (KES) <span className="text-zinc-500">(optional)</span></label>
-          <input
-            name="openingBalance"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue="0"
-            className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-          />
-          <p className="text-xs text-zinc-500 mt-1">Amount owed to this supplier before using this system</p>
-        </div>
-
         <button
           type="submit"
           className="w-full bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded py-2.5 text-sm transition-colors mt-2"

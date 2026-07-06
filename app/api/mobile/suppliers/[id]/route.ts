@@ -40,7 +40,6 @@ export async function PATCH(
       address: str(body.address),
       town: str(body.town),
       poBox: str(body.poBox),
-      openingBalance: body.openingBalance?.toString() ?? "0",
     },
   });
 

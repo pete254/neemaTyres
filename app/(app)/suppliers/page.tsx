@@ -26,7 +26,7 @@ export default async function SuppliersPage() {
               <th className="pb-3 pr-4">Supplier</th>
               <th className="pb-3 pr-4">Phone</th>
               <th className="pb-3 pr-4">Town</th>
-              <th className="pb-3 pr-4 text-right">Opening Balance</th>
+              <th className="pb-3 pr-4 text-right">Current Balance</th>
               <th className="pb-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -39,7 +39,7 @@ export default async function SuppliersPage() {
                 </td>
                 <td className="py-3 pr-4 text-zinc-400">{s.phone ?? "—"}</td>
                 <td className="py-3 pr-4 text-zinc-400">{s.town ?? "—"}</td>
-                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(s.openingBalance.toString())}</td>
+                <td className="py-3 pr-4 text-right font-medium text-[#EAB308]">{fmt(s.currentBalance.toString())}</td>
                 <td className="py-3 text-right space-x-3">
                   <Link href={`/suppliers/${s.id}/edit`} className="text-zinc-400 hover:text-white text-xs">
                     Edit
