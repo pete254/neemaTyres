@@ -3,20 +3,52 @@ import type { Prisma } from "@/app/generated/prisma/client";
 
 type Tx = Prisma.TransactionClient;
 
-/** Returns the current running balance for a supplier (0 if no entries yet). */
+/**
+ * Current payable for a supplier = Σ debit − Σ credit across all entries.
+ * Order-independent, so it is always correct regardless of the order in which
+ * entries were posted (unlike reading the latest row's stored runningBalance).
+ */
 export async function getSupplierRunningBalance(
   tx: Tx,
   supplierId: string
 ): Promise<Decimal> {
-  const latest = await tx.ledgerEntry.findFirst({
+  const agg = await tx.ledgerEntry.aggregate({
     where: { supplierId },
-    orderBy: [{ date: "desc" }, { id: "desc" }],
-    select: { runningBalance: true },
+    _sum: { debit: true, credit: true },
   });
-  return latest ? new Decimal(latest.runningBalance.toString()) : new Decimal(0);
+  const debit = new Decimal(agg._sum.debit?.toString() ?? "0");
+  const credit = new Decimal(agg._sum.credit?.toString() ?? "0");
+  return debit.minus(credit);
 }
 
-/** Appends a ledger entry and returns it. */
+/**
+ * Recomputes every entry's runningBalance for a supplier in chronological
+ * order ([date asc, id asc]). Call after any insert so the stored running
+ * balances stay internally consistent even when an entry is backdated or
+ * inserted out of order (e.g. an edited purchase re-posted after a later
+ * payment already exists).
+ */
+export async function recomputeSupplierLedger(
+  tx: Tx,
+  supplierId: string
+): Promise<void> {
+  const entries = await tx.ledgerEntry.findMany({
+    where: { supplierId },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+    select: { id: true, debit: true, credit: true },
+  });
+
+  let balance = new Decimal(0);
+  for (const e of entries) {
+    balance = balance.plus(e.debit.toString()).minus(e.credit.toString());
+    await tx.ledgerEntry.update({
+      where: { id: e.id },
+      data: { runningBalance: balance.toDecimalPlaces(2) },
+    });
+  }
+}
+
+/** Appends a ledger entry, then recomputes the chain so all balances stay correct. */
 export async function appendLedgerEntry(
   tx: Tx,
   supplierId: string,
@@ -25,16 +57,18 @@ export async function appendLedgerEntry(
   debit: Decimal,
   credit: Decimal
 ) {
-  const prev = await getSupplierRunningBalance(tx, supplierId);
-  const runningBalance = prev.plus(debit).minus(credit);
-  return tx.ledgerEntry.create({
+  const entry = await tx.ledgerEntry.create({
     data: {
       supplierId,
       date,
       description,
       debit: debit.toDecimalPlaces(2),
       credit: credit.toDecimalPlaces(2),
-      runningBalance: runningBalance.toDecimalPlaces(2),
+      // Placeholder — corrected by the full recompute below.
+      runningBalance: new Decimal(0).toDecimalPlaces(2),
     },
   });
+
+  await recomputeSupplierLedger(tx, supplierId);
+  return entry;
 }

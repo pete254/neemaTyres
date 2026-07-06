@@ -19,7 +19,7 @@ const mockTx = {
   payment: { create: vi.fn(), aggregate: vi.fn() },
   debtCollection: { create: vi.fn(), aggregate: vi.fn() },
   supplierPayment: { create: vi.fn() },
-  ledgerEntry: { create: vi.fn(), findFirst: vi.fn() },
+  ledgerEntry: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), aggregate: vi.fn() },
   exceptionFlag: { create: vi.fn() },
   return: { create: vi.fn() },
 };
@@ -80,8 +80,12 @@ describe("postPurchase — WAC and ledger", () => {
     mockTx.purchaseLine.create.mockResolvedValue({});
     mockTx.productVariant.update.mockResolvedValue({});
     mockTx.purchase.findUniqueOrThrow.mockResolvedValue({ id: "purch-2", lines: [] });
-    mockTx.ledgerEntry.findFirst.mockResolvedValue(null); // no prior balance
-    mockTx.ledgerEntry.create.mockResolvedValue({});
+    mockTx.ledgerEntry.create.mockResolvedValue({ id: "le-1" });
+    // recompute reads all entries then updates each running balance
+    mockTx.ledgerEntry.findMany.mockResolvedValue([
+      { id: "le-1", debit: { toString: () => "100000" }, credit: { toString: () => "0" } },
+    ]);
+    mockTx.ledgerEntry.update.mockResolvedValue({});
 
     await postPurchase({
       supplierId: "sup-1",
@@ -95,7 +99,9 @@ describe("postPurchase — WAC and ledger", () => {
     const ledgerData = mockTx.ledgerEntry.create.mock.calls[0][0].data;
     expect(Number(ledgerData.debit)).toBe(100000); // 4×25000
     expect(Number(ledgerData.credit)).toBe(0);
-    expect(Number(ledgerData.runningBalance)).toBe(100000);
+    // The final running balance is written by the recompute pass (update), not create.
+    expect(mockTx.ledgerEntry.update).toHaveBeenCalledOnce();
+    expect(Number(mockTx.ledgerEntry.update.mock.calls[0][0].data.runningBalance)).toBe(100000);
   });
 
   it("does NOT post a ledger entry for CASH purchase", async () => {
@@ -282,34 +288,67 @@ describe("debt collection — accounting boundary", () => {
 describe("supplier ledger — running balance", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
+  // Simulate an in-memory ledger table for one supplier so we can exercise the
+  // create + full recompute cycle in appendLedgerEntry.
+  function wireLedger(initial: Array<{ id: string; date: Date; debit: string; credit: string }> = []) {
+    let seq = initial.length;
+    const rows = initial.map((r) => ({ ...r, runningBalance: "0" }));
+
+    mockTx.ledgerEntry.create.mockImplementation(({ data }: any) => {
+      const row = {
+        id: `e${++seq}`,
+        date: data.date,
+        debit: data.debit.toString(),
+        credit: data.credit.toString(),
+        runningBalance: data.runningBalance.toString(),
+      };
+      rows.push(row);
+      return Promise.resolve(row);
+    });
+    mockTx.ledgerEntry.findMany.mockImplementation(() =>
+      Promise.resolve(
+        [...rows].sort((a, b) =>
+          a.date.getTime() - b.date.getTime() || a.id.localeCompare(b.id)
+        )
+      )
+    );
+    mockTx.ledgerEntry.update.mockImplementation(({ where, data }: any) => {
+      const row = rows.find((r) => r.id === where.id)!;
+      row.runningBalance = data.runningBalance.toString();
+      return Promise.resolve(row);
+    });
+    return rows;
+  }
+
   it("purchase + payment + return produce correct running balance sequence", async () => {
-    const { appendLedgerEntry, getSupplierRunningBalance } = await import("@/lib/posting/ledger");
+    const { appendLedgerEntry } = await import("@/lib/posting/ledger");
+    const d = new Date("2026-01-01");
+    const rows = wireLedger();
 
-    // Simulate: purchase 200k credit → pay 125k → return 75k → balance = 0
-    let runningBalance = new Decimal(0);
+    await appendLedgerEntry(mockTx as any, "sup-1", d, "purchase", dec(200000), dec(0));
+    expect(rows.at(-1)!.runningBalance).toBe("200000");
 
-    // Step 1: purchase 200,000
-    mockTx.ledgerEntry.findFirst.mockResolvedValueOnce(null);
-    mockTx.ledgerEntry.create.mockImplementation(({ data }: { data: { runningBalance: Decimal } }) => {
-      runningBalance = new Decimal(data.runningBalance.toString());
-      return Promise.resolve({ runningBalance: data.runningBalance });
-    });
+    await appendLedgerEntry(mockTx as any, "sup-1", d, "payment", dec(0), dec(125000));
+    expect(rows.at(-1)!.runningBalance).toBe("75000");
 
-    await appendLedgerEntry(mockTx as any, "sup-1", new Date(), "purchase", dec(200000), dec(0));
-    expect(runningBalance.toString()).toBe("200000");
+    await appendLedgerEntry(mockTx as any, "sup-1", d, "return", dec(0), dec(75000));
+    expect(rows.at(-1)!.runningBalance).toBe("0");
+  });
 
-    // Step 2: pay 125,000
-    mockTx.ledgerEntry.findFirst.mockResolvedValueOnce({
-      runningBalance: { toString: () => "200000" },
-    });
-    await appendLedgerEntry(mockTx as any, "sup-1", new Date(), "payment", dec(0), dec(125000));
-    expect(runningBalance.toString()).toBe("75000");
+  it("keeps balances consistent when a backdated entry is inserted after a later one", async () => {
+    const { appendLedgerEntry } = await import("@/lib/posting/ledger");
+    // Opening 837k (25 Jun), then a payment 125k (04 Jul) posted first...
+    const rows = wireLedger([
+      { id: "e1", date: new Date("2026-06-25"), debit: "837000", credit: "0" },
+    ]);
+    await appendLedgerEntry(mockTx as any, "sup-1", new Date("2026-07-04"), "payment", dec(0), dec(125000));
 
-    // Step 3: return 75,000 (credit)
-    mockTx.ledgerEntry.findFirst.mockResolvedValueOnce({
-      runningBalance: { toString: () => "75000" },
-    });
-    await appendLedgerEntry(mockTx as any, "sup-1", new Date(), "return", dec(0), dec(75000));
-    expect(runningBalance.toString()).toBe("0");
+    // ...then a backdated purchase receipt (01 Jul) is appended AFTER the payment
+    // (the exact scenario that corrupted the real ledger: cash→debt edit).
+    await appendLedgerEntry(mockTx as any, "sup-1", new Date("2026-07-01"), "purchase", dec(571500), dec(0));
+
+    // Ordered by date, balances must chain correctly: 837k → 1,408.5k → 1,283.5k
+    const ordered = [...rows].sort((a, b) => a.date.getTime() - b.date.getTime() || a.id.localeCompare(b.id));
+    expect(ordered.map((r) => r.runningBalance)).toEqual(["837000", "1408500", "1283500"]);
   });
 });

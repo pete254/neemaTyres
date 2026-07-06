@@ -183,6 +183,15 @@ async function main() {
     });
 
     // Opening ledger line so the running statement starts at the right balance.
+    // Idempotent: clear any prior opening line first so re-seeding does not
+    // create a duplicate "Opening balance (carried forward)" (which would
+    // double-count the payable).
+    await prisma.ledgerEntry.deleteMany({
+      where: {
+        supplierId: supplier.id,
+        description: "Opening balance (carried forward)",
+      },
+    });
     await prisma.ledgerEntry.create({
       data: {
         supplierId: supplier.id,
