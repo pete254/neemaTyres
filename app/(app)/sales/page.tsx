@@ -7,7 +7,7 @@ import {
 import type { LedgerRow } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
 import { DeleteSaleButton } from "./DeleteSaleButton";
-import { VariantPicker } from "./VariantPicker";
+import { SizePicker } from "./SizePicker";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number) =>
@@ -21,6 +21,7 @@ interface PageProps {
     from?: string;
     to?: string;
     tab?: string;
+    bucket?: string;
     variant?: string;
   }>;
 }
@@ -66,7 +67,7 @@ export default async function SalesPage({ searchParams }: PageProps) {
       </div>
 
       {tab === "by-type" ? (
-        <ByTypeView variantId={params.variant} />
+        <ByTypeView bucket={params.bucket} variantId={params.variant} />
       ) : (
         <DailyView fromStr={params.from} toStr={params.to} />
       )}
@@ -205,87 +206,183 @@ const ROW_LABEL: Record<string, string> = {
   PURCHASE_RETURN: "Return out",
 };
 
-async function ByTypeView({ variantId }: { variantId?: string }) {
+async function ByTypeView({
+  bucket: bucketParam,
+  variantId,
+}: {
+  bucket?: string;
+  variantId?: string;
+}) {
   const variants = await getStockableVariants();
+
+  // Fall back to the selected variant's bucket if none is given in the URL.
+  const selectedVariant = variantId
+    ? variants.find((v) => v.id === variantId)
+    : undefined;
+  const bucket = bucketParam ?? selectedVariant?.sizeBucket;
+
+  const buckets = Array.from(new Set(variants.map((v) => v.sizeBucket))).sort();
+  const bucketVariants = bucket
+    ? variants.filter((v) => v.sizeBucket === bucket)
+    : [];
+  const bucketTotalInStock = bucketVariants.reduce((s, v) => s + v.qtyOnHand, 0);
+
   const ledger = variantId ? await getVariantStockLedger(variantId) : null;
 
   return (
     <div className="space-y-6">
       <div>
         <label className="block text-xs text-zinc-500 mb-2">
-          Select size, then tyre type (most recently stocked first)
+          Select size — tyres in that size are listed below, most recently stocked first
         </label>
-        <VariantPicker variants={variants} selected={variantId} />
+        <SizePicker buckets={buckets} selected={bucket} />
       </div>
 
-      {!variantId && (
+      {!bucket && (
         <p className="text-center text-zinc-500 py-12">
-          Select a tyre type to see its stock ledger.
+          Select a size to list its tyres.
         </p>
       )}
 
-      {variantId && !ledger && (
-        <p className="text-center text-zinc-500 py-12">Tyre type not found.</p>
-      )}
-
-      {ledger && (
+      {bucket && (
         <>
-          {/* Stat cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-              <p className="text-xs text-zinc-500 mb-1">Starting stock</p>
-              <p className="text-xl font-bold text-white">{ledger.openingQty}</p>
-            </div>
-            <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-              <p className="text-xs text-zinc-500 mb-1">Movements</p>
-              <p className="text-xl font-bold text-white">{ledger.rows.length - 1}</p>
-            </div>
-            <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-              <p className="text-xs text-zinc-500 mb-1">Currently in stock</p>
-              <p className="text-xl font-bold text-[#EAB308]">{ledger.currentStock}</p>
-            </div>
+          {/* Bucket summary */}
+          <div className="flex items-center justify-between bg-[#111] border border-[#2A2A2A] rounded-lg px-4 py-3">
+            <span className="text-sm text-zinc-300">
+              Size <span className="font-semibold text-white">{bucket}&quot;</span> ·{" "}
+              {bucketVariants.length} tyre type{bucketVariants.length !== 1 ? "s" : ""}
+            </span>
+            <span className="text-sm text-zinc-400">
+              Total in stock:{" "}
+              <span className="font-bold text-[#EAB308]">{bucketTotalInStock}</span>
+            </span>
           </div>
 
-          {/* Ledger table */}
-          <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
-              <thead>
-                <tr className="text-left text-zinc-500 border-b border-[#2A2A2A]">
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Movement</th>
-                  <th className="px-4 py-3 font-medium">Detail</th>
-                  <th className="px-4 py-3 font-medium text-right">In</th>
-                  <th className="px-4 py-3 font-medium text-right">Out</th>
-                  <th className="px-4 py-3 font-medium text-right">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.rows.map((row, i) => (
-                  <LedgerRowView key={i} row={row} />
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-[#2A2A2A] font-semibold">
-                  <td className="px-4 py-3 text-white" colSpan={5}>
-                    Currently in stock
-                  </td>
-                  <td className="px-4 py-3 text-right text-[#EAB308]">
-                    {ledger.currentStock}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          {/* Master-detail: tyre list (left) + ledger (right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6">
+            {/* Left: scrollable list of tyres in this bucket */}
+            <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-hidden self-start w-full">
+              <div className="px-3 py-2 text-xs text-zinc-500 border-b border-[#1E1E1E]">
+                Tyres in {bucket}&quot;
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto">
+                {bucketVariants.map((v) => {
+                  const active = v.id === variantId;
+                  return (
+                    <Link
+                      key={v.id}
+                      href={`/sales?tab=by-type&bucket=${encodeURIComponent(bucket)}&variant=${v.id}`}
+                      className={`flex items-center justify-between gap-2 px-3 py-2.5 border-b border-[#141414] text-sm transition-colors ${
+                        active
+                          ? "bg-[#1C1A00] text-[#EAB308]"
+                          : "text-zinc-300 hover:bg-[#141414]"
+                      }`}
+                    >
+                      <span className="truncate">{v.label}</span>
+                      <span
+                        className={`shrink-0 text-xs ${
+                          v.qtyOnHand < 1 ? "text-red-400" : "text-zinc-500"
+                        }`}
+                      >
+                        {v.qtyOnHand}
+                      </span>
+                    </Link>
+                  );
+                })}
+                {bucketVariants.length === 0 && (
+                  <p className="px-3 py-6 text-center text-zinc-600 text-sm">
+                    No tyres in this size.
+                  </p>
+                )}
+              </div>
+            </div>
 
-          {ledger.rows[ledger.rows.length - 1].balance !== ledger.currentStock && (
-            <p className="text-xs text-orange-400">
-              Note: the ledger balance (
-              {ledger.rows[ledger.rows.length - 1].balance}) does not match the
-              current stock on hand ({ledger.currentStock}). This may indicate a
-              manual adjustment or data discrepancy.
-            </p>
-          )}
+            {/* Right: ledger for the selected tyre */}
+            <div className="min-w-0">
+              {!variantId && (
+                <p className="text-center text-zinc-500 py-12">
+                  Select a tyre on the left to view its stock ledger.
+                </p>
+              )}
+
+              {variantId && !ledger && (
+                <p className="text-center text-zinc-500 py-12">Tyre type not found.</p>
+              )}
+
+              {ledger && <LedgerPanel ledger={ledger} />}
+            </div>
+          </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function LedgerPanel({
+  ledger,
+}: {
+  ledger: NonNullable<Awaited<ReturnType<typeof getVariantStockLedger>>>;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white">{ledger.label}</h3>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Starting stock</p>
+          <p className="text-xl font-bold text-white">{ledger.openingQty}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Movements</p>
+          <p className="text-xl font-bold text-white">{ledger.rows.length - 1}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Currently in stock</p>
+          <p className="text-xl font-bold text-[#EAB308]">{ledger.currentStock}</p>
+        </div>
+      </div>
+
+      {/* Ledger table */}
+      <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr className="text-left text-zinc-500 border-b border-[#2A2A2A]">
+              <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Movement</th>
+              <th className="px-4 py-3 font-medium">Detail</th>
+              <th className="px-4 py-3 font-medium text-right">In</th>
+              <th className="px-4 py-3 font-medium text-right">Out</th>
+              <th className="px-4 py-3 font-medium text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ledger.rows.map((row, i) => (
+              <LedgerRowView key={i} row={row} />
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-[#2A2A2A] font-semibold">
+              <td className="px-4 py-3 text-white" colSpan={5}>
+                Currently in stock
+              </td>
+              <td className="px-4 py-3 text-right text-[#EAB308]">
+                {ledger.currentStock}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {ledger.rows[ledger.rows.length - 1].balance !== ledger.currentStock && (
+        <p className="text-xs text-orange-400">
+          Note: the ledger balance (
+          {ledger.rows[ledger.rows.length - 1].balance}) does not match the
+          current stock on hand ({ledger.currentStock}). This may indicate a
+          manual adjustment or data discrepancy.
+        </p>
       )}
     </div>
   );
