@@ -21,6 +21,25 @@ export interface StockPerformanceResult {
   topSizes: PerfRow[];
 }
 
+export interface StaleItem {
+  variantId: string;
+  label: string;
+  sizeBucket: string;
+  qtyOnHand: number;
+  stockValue: Decimal;
+  lastSoldAt: Date | null;
+  daysSinceLastSale: number | null; // null = never sold
+  daysInStock: number;
+}
+
+export interface StaleStockResult {
+  thresholdDays: number;
+  items: StaleItem[]; // in-stock items, most stale first
+  staleCount: number; // items past the threshold (incl. never-sold)
+  staleValue: Decimal; // capital tied up in those stale items
+  totalStockValue: Decimal;
+}
+
 interface Agg {
   qty: number;
   revenue: Decimal;
@@ -120,4 +139,80 @@ export async function getStockPerformance(
     topTypes,
     topSizes,
   };
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * In-stock items (qtyOnHand > 0) ranked by how long they have gone without a
+ * sale — surfaces stale / slow-moving stock and the capital tied up in it.
+ * "lastSoldAt" is the most recent sale of that variant across all time.
+ */
+export async function getStaleStock(
+  thresholdDays: number = 90
+): Promise<StaleStockResult> {
+  const [variants, saleLines] = await Promise.all([
+    prisma.productVariant.findMany({
+      where: { qtyOnHand: { gt: 0 } },
+      include: { brand: true },
+    }),
+    prisma.saleLine.findMany({
+      select: { variantId: true, sale: { select: { date: true } } },
+    }),
+  ]);
+
+  // Most recent sale date per variant.
+  const lastSold = new Map<string, Date>();
+  for (const l of saleLines) {
+    const prev = lastSold.get(l.variantId);
+    if (!prev || l.sale.date > prev) lastSold.set(l.variantId, l.sale.date);
+  }
+
+  const now = Date.now();
+  let staleCount = 0;
+  let staleValue = new Decimal(0);
+  let totalStockValue = new Decimal(0);
+
+  const items: StaleItem[] = variants.map((v) => {
+    const stockValue = new Decimal(v.qtyOnHand).mul(v.wacCost.toString());
+    totalStockValue = totalStockValue.plus(stockValue);
+
+    const soldAt = lastSold.get(v.id) ?? null;
+    const daysSinceLastSale = soldAt
+      ? Math.floor((now - soldAt.getTime()) / DAY_MS)
+      : null;
+    const daysInStock = Math.floor((now - v.createdAt.getTime()) / DAY_MS);
+
+    const isStale =
+      daysSinceLastSale === null || daysSinceLastSale >= thresholdDays;
+    if (isStale) {
+      staleCount += 1;
+      staleValue = staleValue.plus(stockValue);
+    }
+
+    return {
+      variantId: v.id,
+      label: `${v.sizeCanonical} ${v.brand.name}${v.subLabel ? ` ${v.subLabel}` : ""}`.trim(),
+      sizeBucket: v.sizeBucket,
+      qtyOnHand: v.qtyOnHand,
+      stockValue,
+      lastSoldAt: soldAt,
+      daysSinceLastSale,
+      daysInStock,
+    };
+  });
+
+  // Never-sold first (most stale), then longest time since last sale, then by
+  // capital tied up.
+  items.sort((a, b) => {
+    const ad = a.daysSinceLastSale;
+    const bd = b.daysSinceLastSale;
+    if (ad === null && bd !== null) return -1;
+    if (ad !== null && bd === null) return 1;
+    if (ad === null && bd === null) return b.daysInStock - a.daysInStock;
+    if (ad !== bd) return (bd as number) - (ad as number);
+    return b.stockValue.comparedTo(a.stockValue);
+  });
+
+  return { thresholdDays, items, staleCount, staleValue, totalStockValue };
 }

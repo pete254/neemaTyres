@@ -31,10 +31,12 @@ export type { AgedDebtorsResult, AgedDebtor } from "./aged";
 export { getDayBook } from "./dayBook";
 export type { DayBookResult } from "./dayBook";
 
-export { getStockPerformance } from "./stockPerformance";
+export { getStockPerformance, getStaleStock } from "./stockPerformance";
 export type {
   StockPerformanceResult,
   PerfRow,
+  StaleStockResult,
+  StaleItem,
 } from "./stockPerformance";
 
 export { getStockableVariants, getVariantStockLedger } from "./stockLedger";

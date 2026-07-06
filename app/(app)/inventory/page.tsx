@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getInventory, getStockPerformance } from "@/lib/queries";
-import type { PerfRow } from "@/lib/queries";
+import { getInventory, getStockPerformance, getStaleStock } from "@/lib/queries";
+import type { PerfRow, StaleItem } from "@/lib/queries";
 
 import Decimal from "decimal.js";
 
@@ -20,6 +20,8 @@ interface PageProps {
     tab?: string;
     from?: string;
     to?: string;
+    view?: string;
+    stale?: string;
   }>;
 }
 
@@ -56,7 +58,12 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       </div>
 
       {tab === "performance" ? (
-        <PerformanceView fromStr={params.from} toStr={params.to} />
+        <PerformanceView
+          fromStr={params.from}
+          toStr={params.to}
+          view={params.view === "size" ? "size" : "type"}
+          staleParam={params.stale}
+        />
       ) : (
         <StockList search={params.search} position={params.position} />
       )}
@@ -209,145 +216,250 @@ async function StockList({
   );
 }
 
+const STALE_PRESETS = [30, 60, 90, 180];
+
 async function PerformanceView({
   fromStr: fromParam,
   toStr: toParam,
+  view,
+  staleParam,
 }: {
   fromStr?: string;
   toStr?: string;
+  view: "type" | "size";
+  staleParam?: string;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const fromStr =
     fromParam ?? new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
   const toStr = toParam ?? today;
+  const staleDays = STALE_PRESETS.includes(Number(staleParam))
+    ? Number(staleParam)
+    : 90;
 
   const from = new Date(fromStr + "T00:00:00Z");
   const to = new Date(toStr + "T23:59:59Z");
 
-  const perf = await getStockPerformance(from, to);
+  const [perf, stale] = await Promise.all([
+    getStockPerformance(from, to),
+    getStaleStock(staleDays),
+  ]);
+
+  // Preserve current filters when building sub-navigation links.
+  const hrefWith = (o: { view?: string; stale?: number }) => {
+    const p = new URLSearchParams({ tab: "performance", from: fromStr, to: toStr });
+    p.set("view", o.view ?? view);
+    p.set("stale", String(o.stale ?? staleDays));
+    return `/inventory?${p.toString()}`;
+  };
+
+  const rows = view === "size" ? perf.topSizes : perf.topTypes;
+  const maxUnits = rows.reduce((m, r) => Math.max(m, r.qtySold), 0) || 1;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Date range */}
       <form className="flex gap-3 items-end flex-wrap">
         <input type="hidden" name="tab" value="performance" />
+        <input type="hidden" name="view" value={view} />
+        <input type="hidden" name="stale" value={staleDays} />
         <div>
           <label className="block text-xs text-zinc-400 mb-1">From</label>
-          <input
-            type="date"
-            name="from"
-            defaultValue={fromStr}
-            max={today}
-            className="bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-          />
+          <input type="date" name="from" defaultValue={fromStr} max={today}
+            className="bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]" />
         </div>
         <div>
           <label className="block text-xs text-zinc-400 mb-1">To</label>
-          <input
-            type="date"
-            name="to"
-            defaultValue={toStr}
-            max={today}
-            className="bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]"
-          />
+          <input type="date" name="to" defaultValue={toStr} max={today}
+            className="bg-[#1C1C1C] border border-[#2A2A2A] rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#EAB308]" />
         </div>
-        <button
-          type="submit"
-          className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors"
-        >
+        <button type="submit"
+          className="bg-[#EAB308] hover:bg-[#CA8A04] text-black font-semibold rounded px-4 py-2 text-sm transition-colors">
           Apply
         </button>
       </form>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 mb-1">Units Sold</p>
-          <p className="text-xl font-bold text-white">{perf.totalUnits}</p>
-        </div>
-        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 mb-1">Revenue</p>
-          <p className="text-xl font-bold text-[#EAB308]">{fmt(perf.totalRevenue)}</p>
-        </div>
-        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 mb-1">Gross Profit</p>
-          <p className={`text-xl font-bold ${perf.totalProfit.gte(0) ? "text-green-400" : "text-red-400"}`}>
-            {fmt(perf.totalProfit)}
-          </p>
-        </div>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Kpi label="Units Sold" value={String(perf.totalUnits)} tone="white" />
+        <Kpi label="Revenue" value={fmt(perf.totalRevenue)} tone="yellow" />
+        <Kpi label="Gross Profit" value={fmt(perf.totalProfit)} tone={perf.totalProfit.gte(0) ? "green" : "red"} />
+        <Kpi label="Stock Value" value={fmt(stale.totalStockValue)} tone="white" />
+        <Kpi
+          label={`Stale ≥ ${staleDays}d`}
+          value={fmt(stale.staleValue)}
+          sub={`${stale.staleCount} item${stale.staleCount !== 1 ? "s" : ""}`}
+          tone={stale.staleValue.gt(0) ? "orange" : "white"}
+        />
       </div>
 
-      {perf.totalUnits === 0 ? (
-        <p className="text-center text-zinc-500 py-12">
-          No sales in this period.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PerfTable
-            title="Best-Selling Tyre Types"
-            rows={perf.topTypes}
-            hrefFor={(r) => `/sales?tab=by-type&variant=${r.key}`}
-          />
-          <PerfTable
-            title="Best-Selling Sizes"
-            rows={perf.topSizes}
-            hrefFor={(r) => `/inventory?search=${encodeURIComponent(r.key)}`}
-          />
+      {/* Best sellers with Type / Size toggle */}
+      <section>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="text-sm font-semibold text-zinc-300">
+            Best Sellers <span className="text-zinc-600">· {fromStr} → {toStr}</span>
+          </h3>
+          <div className="flex gap-1 bg-[#111] border border-[#2A2A2A] rounded-lg p-1">
+            <Link href={hrefWith({ view: "type" })}
+              className={`px-3 py-1 text-xs font-medium rounded ${view === "type" ? "bg-[#EAB308] text-black" : "text-zinc-400 hover:text-white"}`}>
+              By Type
+            </Link>
+            <Link href={hrefWith({ view: "size" })}
+              className={`px-3 py-1 text-xs font-medium rounded ${view === "size" ? "bg-[#EAB308] text-black" : "text-zinc-400 hover:text-white"}`}>
+              By Size
+            </Link>
+          </div>
         </div>
-      )}
+
+        {rows.length === 0 ? (
+          <p className="text-center text-zinc-500 py-12 bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg">
+            No sales in this period.
+          </p>
+        ) : (
+          <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg divide-y divide-[#141414]">
+            {rows.map((r, i) => (
+              <BarRow
+                key={r.key}
+                rank={i + 1}
+                row={r}
+                pct={(r.qtySold / maxUnits) * 100}
+                href={view === "size"
+                  ? `/inventory?search=${encodeURIComponent(r.key)}`
+                  : `/sales?tab=by-type&variant=${r.key}`}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Stale / slow-moving stock */}
+      <section>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-300">Slow-Moving &amp; Stale Stock</h3>
+            <p className="text-xs text-zinc-600">In-stock items with no sale in the selected window — capital sitting on the shelf.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-500">Stale after</span>
+            <div className="flex gap-1 bg-[#111] border border-[#2A2A2A] rounded-lg p-1">
+              {STALE_PRESETS.map((d) => (
+                <Link key={d} href={hrefWith({ stale: d })}
+                  className={`px-2.5 py-1 text-xs font-medium rounded ${staleDays === d ? "bg-[#EAB308] text-black" : "text-zinc-400 hover:text-white"}`}>
+                  {d}d
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+        <StaleTable items={stale.items} thresholdDays={staleDays} />
+      </section>
     </div>
   );
 }
 
-function PerfTable({
-  title,
-  rows,
-  hrefFor,
+function Kpi({
+  label, value, sub, tone,
 }: {
-  title: string;
-  rows: PerfRow[];
-  hrefFor: (r: PerfRow) => string;
+  label: string; value: string; sub?: string;
+  tone: "white" | "yellow" | "green" | "red" | "orange";
+}) {
+  const color = {
+    white: "text-white", yellow: "text-[#EAB308]", green: "text-green-400",
+    red: "text-red-400", orange: "text-orange-400",
+  }[tone];
+  return (
+    <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+      <p className="text-xs text-zinc-500 mb-1">{label}</p>
+      <p className={`text-lg font-bold ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-zinc-600 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function BarRow({
+  rank, row, pct, href,
+}: {
+  rank: number; row: PerfRow; pct: number; href: string;
 }) {
   return (
-    <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#2A2A2A]">
-        <h3 className="text-sm font-semibold text-zinc-300">{title}</h3>
+    <div className="px-4 py-3 hover:bg-[#111] transition-colors">
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xs text-zinc-600 w-4 shrink-0">{rank}</span>
+          <Link href={href} className="text-sm text-zinc-200 hover:text-[#EAB308] truncate">
+            {row.label}
+          </Link>
+          {row.sub && <span className="text-xs text-zinc-600 shrink-0 hidden sm:inline">{row.sub}</span>}
+        </div>
+        <div className="flex items-center gap-4 shrink-0 text-right">
+          <span className="text-sm font-semibold text-white">{row.qtySold} sold</span>
+          <span className="text-xs text-zinc-400 w-24 hidden sm:inline">{fmt(row.revenue)}</span>
+          <span className={`text-xs w-12 hidden md:inline ${row.grossProfit.gte(0) ? "text-green-400" : "text-red-400"}`}>
+            {row.marginPct.toDecimalPlaces(0).toString()}%
+          </span>
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[420px]">
-          <thead>
-            <tr className="text-left text-zinc-500 border-b border-[#1C1C1C]">
-              <th className="px-4 py-2 font-medium w-8">#</th>
-              <th className="px-4 py-2 font-medium">Item</th>
-              <th className="px-4 py-2 font-medium text-right">Sold</th>
-              <th className="px-4 py-2 font-medium text-right">Revenue</th>
-              <th className="px-4 py-2 font-medium text-right">Profit</th>
-              <th className="px-4 py-2 font-medium text-right">Margin</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.key} className="border-b border-[#141414] hover:bg-[#111]">
-                <td className="px-4 py-2.5 text-zinc-500">{i + 1}</td>
+      <div className="h-1.5 bg-[#1C1C1C] rounded-full overflow-hidden">
+        <div className="h-full bg-[#EAB308] rounded-full" style={{ width: `${Math.max(pct, 2)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function StaleTable({ items, thresholdDays }: { items: StaleItem[]; thresholdDays: number }) {
+  if (items.length === 0) {
+    return (
+      <p className="text-center text-zinc-500 py-12 bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg">
+        Nothing in stock.
+      </p>
+    );
+  }
+  return (
+    <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-x-auto">
+      <table className="w-full text-sm min-w-[620px]">
+        <thead>
+          <tr className="text-left text-zinc-500 border-b border-[#2A2A2A]">
+            <th className="px-4 py-3 font-medium">Item</th>
+            <th className="px-4 py-3 font-medium">Size</th>
+            <th className="px-4 py-3 font-medium text-right">In Stock</th>
+            <th className="px-4 py-3 font-medium text-right">Value @WAC</th>
+            <th className="px-4 py-3 font-medium text-right">Last Sold</th>
+            <th className="px-4 py-3 font-medium text-right">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it) => {
+            const isStale =
+              it.daysSinceLastSale === null || it.daysSinceLastSale >= thresholdDays;
+            return (
+              <tr key={it.variantId} className="border-b border-[#141414] hover:bg-[#111]">
                 <td className="px-4 py-2.5">
-                  <Link href={hrefFor(r)} className="text-zinc-200 hover:text-[#EAB308]">
-                    {r.label}
+                  <Link href={`/sales?tab=by-type&variant=${it.variantId}`} className="text-zinc-200 hover:text-[#EAB308]">
+                    {it.label}
                   </Link>
-                  {r.sub && <p className="text-xs text-zinc-600">{r.sub}</p>}
                 </td>
-                <td className="px-4 py-2.5 text-right text-white font-semibold">{r.qtySold}</td>
-                <td className="px-4 py-2.5 text-right text-zinc-300">{fmt(r.revenue)}</td>
-                <td className={`px-4 py-2.5 text-right ${r.grossProfit.gte(0) ? "text-green-400" : "text-red-400"}`}>
-                  {fmt(r.grossProfit)}
-                </td>
+                <td className="px-4 py-2.5 text-zinc-500 font-mono text-xs">{it.sizeBucket}&quot;</td>
+                <td className="px-4 py-2.5 text-right text-white font-semibold">{it.qtyOnHand}</td>
+                <td className="px-4 py-2.5 text-right text-zinc-300">{fmt(it.stockValue)}</td>
                 <td className="px-4 py-2.5 text-right text-zinc-400">
-                  {r.marginPct.toDecimalPlaces(1).toString()}%
+                  {it.lastSoldAt
+                    ? `${new Date(it.lastSoldAt).toISOString().slice(0, 10)} (${it.daysSinceLastSale}d)`
+                    : "Never"}
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  {it.lastSoldAt === null ? (
+                    <span className="text-xs font-medium text-red-400 bg-red-950/40 border border-red-900/50 rounded px-2 py-0.5">Never sold</span>
+                  ) : isStale ? (
+                    <span className="text-xs font-medium text-orange-400 bg-orange-950/30 border border-orange-900/50 rounded px-2 py-0.5">Stale</span>
+                  ) : (
+                    <span className="text-xs font-medium text-green-400/80">Active</span>
+                  )}
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

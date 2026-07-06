@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { saleLine: { findMany: vi.fn() } },
+  prisma: {
+    saleLine: { findMany: vi.fn() },
+    productVariant: { findMany: vi.fn() },
+  },
 }));
 
 import { prisma } from "@/lib/prisma";
-import { getStockPerformance } from "@/lib/queries/stockPerformance";
+import { getStockPerformance, getStaleStock } from "@/lib/queries/stockPerformance";
 
 const dec = (n: string) => ({ toString: () => n });
 
@@ -73,5 +76,60 @@ describe("getStockPerformance", () => {
     expect(r.totalUnits).toBe(0);
     expect(r.topTypes).toEqual([]);
     expect(r.topSizes).toEqual([]);
+  });
+});
+
+describe("getStaleStock", () => {
+  const DAY = 86_400_000;
+
+  function variant(id: string, qtyOnHand: number, wac: string, createdDaysAgo: number) {
+    return {
+      id,
+      qtyOnHand,
+      wacCost: dec(wac),
+      sizeCanonical: `${id}-CANON`,
+      sizeBucket: "22.5",
+      subLabel: null,
+      createdAt: new Date(Date.now() - createdDaysAgo * DAY),
+      brand: { name: "BS" },
+    };
+  }
+
+  it("flags never-sold and long-idle items as stale, ranks most stale first", async () => {
+    (prisma.productVariant.findMany as any).mockResolvedValue([
+      variant("A", 4, "10000", 200), // never sold
+      variant("B", 2, "10000", 200), // sold 120d ago -> stale (>90)
+      variant("C", 3, "10000", 200), // sold 10d ago -> active
+    ]);
+    (prisma.saleLine.findMany as any).mockResolvedValue([
+      { variantId: "B", sale: { date: new Date(Date.now() - 120 * DAY) } },
+      { variantId: "C", sale: { date: new Date(Date.now() - 10 * DAY) } },
+    ]);
+
+    const r = await getStaleStock(90);
+
+    // Never-sold (A) first, then longest-idle sold (B), then active (C)
+    expect(r.items.map((i) => i.variantId)).toEqual(["A", "B", "C"]);
+    expect(r.items[0].lastSoldAt).toBeNull();
+    expect(r.items[0].daysSinceLastSale).toBeNull();
+    expect(r.items[1].daysSinceLastSale).toBe(120);
+
+    // A (40k) + B (20k) are stale; C (30k) is active
+    expect(r.staleCount).toBe(2);
+    expect(r.staleValue.toString()).toBe("60000");
+    expect(r.totalStockValue.toString()).toBe("90000");
+  });
+
+  it("respects the threshold — a tighter window marks more items stale", async () => {
+    (prisma.productVariant.findMany as any).mockResolvedValue([
+      variant("C", 3, "10000", 200),
+    ]);
+    (prisma.saleLine.findMany as any).mockResolvedValue([
+      { variantId: "C", sale: { date: new Date(Date.now() - 10 * DAY) } },
+    ]);
+    const loose = await getStaleStock(90);
+    const tight = await getStaleStock(7);
+    expect(loose.staleCount).toBe(0);
+    expect(tight.staleCount).toBe(1);
   });
 });
