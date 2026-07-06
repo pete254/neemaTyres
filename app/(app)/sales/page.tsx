@@ -1,7 +1,13 @@
 import Link from "next/link";
-import { getSalesBetween } from "@/lib/queries";
+import {
+  getSalesBetween,
+  getStockableVariants,
+  getVariantStockLedger,
+} from "@/lib/queries";
+import type { LedgerRow } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
 import { DeleteSaleButton } from "./DeleteSaleButton";
+import { VariantPicker } from "./VariantPicker";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number) =>
@@ -11,19 +17,17 @@ const fmt = (n: Decimal | number) =>
   }).format(Number(n));
 
 interface PageProps {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    tab?: string;
+    variant?: string;
+  }>;
 }
 
 export default async function SalesPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
-  const fromStr = params.from ?? today;
-  const toStr = params.to ?? today;
-
-  const from = new Date(fromStr + "T00:00:00Z");
-  const to = new Date(toStr + "T23:59:59Z");
-
-  const report = await getSalesBetween(from, to);
+  const tab = params.tab === "by-type" ? "by-type" : "daily";
 
   return (
     <div className="p-6">
@@ -37,6 +41,57 @@ export default async function SalesPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-[#2A2A2A]">
+        <Link
+          href="/sales"
+          className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+            tab === "daily"
+              ? "border-[#EAB308] text-[#EAB308]"
+              : "border-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          Daily
+        </Link>
+        <Link
+          href="/sales?tab=by-type"
+          className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+            tab === "by-type"
+              ? "border-[#EAB308] text-[#EAB308]"
+              : "border-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          By Type
+        </Link>
+      </div>
+
+      {tab === "by-type" ? (
+        <ByTypeView variantId={params.variant} />
+      ) : (
+        <DailyView fromStr={params.from} toStr={params.to} />
+      )}
+    </div>
+  );
+}
+
+async function DailyView({
+  fromStr: fromParam,
+  toStr: toParam,
+}: {
+  fromStr?: string;
+  toStr?: string;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const fromStr = fromParam ?? today;
+  const toStr = toParam ?? today;
+
+  const from = new Date(fromStr + "T00:00:00Z");
+  const to = new Date(toStr + "T23:59:59Z");
+
+  const report = await getSalesBetween(from, to);
+
+  return (
+    <>
       <FilterBar basePath="/sales" fromStr={fromStr} toStr={toStr} today={today} />
 
       {/* Summary */}
@@ -138,6 +193,122 @@ export default async function SalesPage({ searchParams }: PageProps) {
       {report.days.length === 0 && (
         <p className="text-center text-zinc-500 py-12">No sales in this period.</p>
       )}
+    </>
+  );
+}
+
+const ROW_LABEL: Record<string, string> = {
+  OPENING: "Opening",
+  PURCHASE: "Purchase",
+  SALE: "Sale",
+  SALE_RETURN: "Return in",
+  PURCHASE_RETURN: "Return out",
+};
+
+async function ByTypeView({ variantId }: { variantId?: string }) {
+  const variants = await getStockableVariants();
+  const ledger = variantId ? await getVariantStockLedger(variantId) : null;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <label className="block text-xs text-zinc-500 mb-2">
+          Tyre type (most recently stocked first)
+        </label>
+        <VariantPicker variants={variants} selected={variantId} />
+      </div>
+
+      {!variantId && (
+        <p className="text-center text-zinc-500 py-12">
+          Select a tyre type to see its stock ledger.
+        </p>
+      )}
+
+      {variantId && !ledger && (
+        <p className="text-center text-zinc-500 py-12">Tyre type not found.</p>
+      )}
+
+      {ledger && (
+        <>
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+              <p className="text-xs text-zinc-500 mb-1">Starting stock</p>
+              <p className="text-xl font-bold text-white">{ledger.openingQty}</p>
+            </div>
+            <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+              <p className="text-xs text-zinc-500 mb-1">Movements</p>
+              <p className="text-xl font-bold text-white">{ledger.rows.length - 1}</p>
+            </div>
+            <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+              <p className="text-xs text-zinc-500 mb-1">Currently in stock</p>
+              <p className="text-xl font-bold text-[#EAB308]">{ledger.currentStock}</p>
+            </div>
+          </div>
+
+          {/* Ledger table */}
+          <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="text-left text-zinc-500 border-b border-[#2A2A2A]">
+                  <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Movement</th>
+                  <th className="px-4 py-3 font-medium">Detail</th>
+                  <th className="px-4 py-3 font-medium text-right">In</th>
+                  <th className="px-4 py-3 font-medium text-right">Out</th>
+                  <th className="px-4 py-3 font-medium text-right">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledger.rows.map((row, i) => (
+                  <LedgerRowView key={i} row={row} />
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-[#2A2A2A] font-semibold">
+                  <td className="px-4 py-3 text-white" colSpan={5}>
+                    Currently in stock
+                  </td>
+                  <td className="px-4 py-3 text-right text-[#EAB308]">
+                    {ledger.currentStock}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {ledger.rows[ledger.rows.length - 1].balance !== ledger.currentStock && (
+            <p className="text-xs text-orange-400">
+              Note: the ledger balance (
+              {ledger.rows[ledger.rows.length - 1].balance}) does not match the
+              current stock on hand ({ledger.currentStock}). This may indicate a
+              manual adjustment or data discrepancy.
+            </p>
+          )}
+        </>
+      )}
     </div>
+  );
+}
+
+function LedgerRowView({ row }: { row: LedgerRow }) {
+  const isOpening = row.kind === "OPENING";
+  return (
+    <tr className={`border-t border-[#1C1C1C] ${isOpening ? "bg-[#111]/40" : ""}`}>
+      <td className="px-4 py-2.5 text-zinc-400 whitespace-nowrap">
+        {row.date ? new Date(row.date).toISOString().slice(0, 10) : "—"}
+      </td>
+      <td className="px-4 py-2.5 text-zinc-300">{ROW_LABEL[row.kind] ?? row.kind}</td>
+      <td className="px-4 py-2.5 text-zinc-500">{row.description}</td>
+      <td className="px-4 py-2.5 text-right text-green-400">
+        {row.qtyIn > 0 ? `+${row.qtyIn}` : ""}
+      </td>
+      <td className="px-4 py-2.5 text-right text-red-400">
+        {row.qtyOut > 0 ? `−${row.qtyOut}` : ""}
+      </td>
+      <td className="px-4 py-2.5 text-right text-zinc-200 font-medium">
+        {row.balance}
+      </td>
+    </tr>
   );
 }

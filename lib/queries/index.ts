@@ -31,6 +31,14 @@ export type { AgedDebtorsResult, AgedDebtor } from "./aged";
 export { getDayBook } from "./dayBook";
 export type { DayBookResult } from "./dayBook";
 
+export { getStockableVariants, getVariantStockLedger } from "./stockLedger";
+export type {
+  StockableVariant,
+  VariantLedger,
+  LedgerRow,
+  LedgerRowKind,
+} from "./stockLedger";
+
 export { getPurchasesBetween } from "./purchasesBetween";
 export type {
   PurchasesBetweenResult,
