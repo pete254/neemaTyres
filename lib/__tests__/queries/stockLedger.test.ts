@@ -30,9 +30,9 @@ beforeEach(() => {
 describe("getStockableVariants", () => {
   it("sorts by most recent stock-in (purchase or sale return) first, nulls last", async () => {
     (prisma.productVariant.findMany as any).mockResolvedValue([
-      { id: "a", sizeCanonical: "11R22.5", brand: { name: "BS" }, position: "STEERING", subLabel: null, qtyOnHand: 5 },
-      { id: "b", sizeCanonical: "12R22.5", brand: { name: "MX" }, position: "DIFF", subLabel: null, qtyOnHand: 3 },
-      { id: "c", sizeCanonical: "13R22.5", brand: { name: "GY" }, position: "NONE", subLabel: null, qtyOnHand: 0 },
+      { id: "a", sizeCanonical: "11R22.5", sizeBucket: "22.5", brand: { name: "BS" }, position: "STEERING", subLabel: null, qtyOnHand: 5 },
+      { id: "b", sizeCanonical: "12R22.5", sizeBucket: "22.5", brand: { name: "MX" }, position: "DIFF", subLabel: null, qtyOnHand: 3 },
+      { id: "c", sizeCanonical: "13R22.5", sizeBucket: "20", brand: { name: "GY" }, position: "NONE", subLabel: null, qtyOnHand: 0 },
     ]);
     // a: last purchase 2026-05-01; b: last purchase 2026-01-01 but sale-return 2026-06-01; c: never
     (prisma.purchaseLine.findMany as any).mockResolvedValue([
@@ -46,6 +46,7 @@ describe("getStockableVariants", () => {
     const result = await getStockableVariants();
     expect(result.map((v) => v.id)).toEqual(["b", "a", "c"]);
     expect(result[0].label).toBe("12R22.5 MX DIFF");
+    expect(result[0].sizeBucket).toBe("22.5");
     expect(result[0].lastStockedInAt).toEqual(new Date("2026-06-01"));
     expect(result[2].lastStockedInAt).toBeNull();
   });

@@ -14,6 +14,7 @@ function variantLabel(v: {
 export interface StockableVariant {
   id: string;
   label: string;
+  sizeBucket: string;
   position: string;
   qtyOnHand: number;
   lastStockedInAt: Date | null;
@@ -48,6 +49,7 @@ export async function getStockableVariants(): Promise<StockableVariant[]> {
     .map((v) => ({
       id: v.id,
       label: variantLabel(v),
+      sizeBucket: v.sizeBucket,
       position: v.position,
       qtyOnHand: v.qtyOnHand,
       lastStockedInAt: lastIn.get(v.id) ?? null,

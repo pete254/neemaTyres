@@ -213,7 +213,7 @@ async function ByTypeView({ variantId }: { variantId?: string }) {
     <div className="space-y-6">
       <div>
         <label className="block text-xs text-zinc-500 mb-2">
-          Tyre type (most recently stocked first)
+          Select size, then tyre type (most recently stocked first)
         </label>
         <VariantPicker variants={variants} selected={variantId} />
       </div>
