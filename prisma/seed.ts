@@ -42,6 +42,17 @@ const SYSTEM_USER = {
 };
 
 async function main() {
+  // Guard against accidental re-seeding of a live database. Re-running this
+  // seed rewrites stock, WAC and opening balances and previously created a
+  // duplicate opening ledger line. Require explicit confirmation.
+  if (process.env["SEED_ALLOW"] !== "1") {
+    console.error(
+      "Refusing to seed: set SEED_ALLOW=1 to confirm you intend to (re)seed this database.\n" +
+        "  e.g.  SEED_ALLOW=1 npx tsx prisma/seed.ts"
+    );
+    process.exit(1);
+  }
+
   console.log("Seeding Kwambira opening snapshot:", SNAPSHOT_TAG);
 
   // 1) System user

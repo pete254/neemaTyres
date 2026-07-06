@@ -23,6 +23,10 @@ export default async function SupplierStatementPage({ params }: PageProps) {
   }
 
   const { supplier, entries } = data;
+  const currentBalance =
+    entries.length > 0
+      ? entries[entries.length - 1].runningBalance.toString()
+      : "0";
 
   return (
     <div className="p-6">
@@ -35,8 +39,10 @@ export default async function SupplierStatementPage({ params }: PageProps) {
         </Link>
         <h2 className="text-2xl font-bold text-white">{supplier.name}</h2>
         <p className="text-sm text-zinc-400">
-          Opening balance:{" "}
-          {fmt(supplier.openingBalance.toString())}
+          Current balance:{" "}
+          <span className="font-semibold text-[#EAB308]">
+            {fmt(currentBalance)}
+          </span>
         </p>
       </div>
 

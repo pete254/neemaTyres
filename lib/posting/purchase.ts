@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { computeWac } from "./wac";
 import { appendLedgerEntry } from "./ledger";
+import { variantLabel, linesSummary } from "./label";
 import type { PostPurchaseInput } from "./types";
 
 export async function deletePurchase(purchaseId: string) {
@@ -12,12 +13,21 @@ export async function deletePurchase(purchaseId: string) {
     });
 
     let totalCost = new Decimal(0);
+    const summaryItems: { qty: number; label: string }[] = [];
 
     for (const line of purchase.lines) {
       const variant = await tx.productVariant.findUniqueOrThrow({
         where: { id: line.variantId },
-        select: { qtyOnHand: true, wacCost: true },
+        select: {
+          qtyOnHand: true,
+          wacCost: true,
+          sizeCanonical: true,
+          subLabel: true,
+          position: true,
+          brand: { select: { name: true } },
+        },
       });
+      summaryItems.push({ qty: line.qty, label: variantLabel(variant) });
 
       const lineUnitCost = new Decimal(line.unitCost.toString());
       totalCost = totalCost.plus(new Decimal(line.lineTotal.toString()));
@@ -46,7 +56,7 @@ export async function deletePurchase(purchaseId: string) {
         tx,
         purchase.supplierId,
         purchase.date,
-        `Reversal of purchase ${purchaseId}`,
+        `Reversal — ${linesSummary(summaryItems)}`,
         new Decimal(0),
         totalCost
       );
@@ -69,6 +79,7 @@ export async function postPurchase(input: PostPurchaseInput) {
     });
 
     let purchaseTotalCost = new Decimal(0);
+    const summaryItems: { qty: number; label: string }[] = [];
 
     for (const line of input.lines) {
       const unitCost = line.unitCost;
@@ -77,8 +88,16 @@ export async function postPurchase(input: PostPurchaseInput) {
 
       const variant = await tx.productVariant.findUniqueOrThrow({
         where: { id: line.variantId },
-        select: { qtyOnHand: true, wacCost: true },
+        select: {
+          qtyOnHand: true,
+          wacCost: true,
+          sizeCanonical: true,
+          subLabel: true,
+          position: true,
+          brand: { select: { name: true } },
+        },
       });
+      summaryItems.push({ qty: line.qty, label: variantLabel(variant) });
 
       const { qty: newQty, wac: newWac } = computeWac(
         { qty: variant.qtyOnHand, wac: new Decimal(variant.wacCost.toString()) },
@@ -111,7 +130,7 @@ export async function postPurchase(input: PostPurchaseInput) {
         tx,
         input.supplierId,
         input.date,
-        `Purchase receipt ${purchase.id}`,
+        `Purchase — ${linesSummary(summaryItems)}`,
         purchaseTotalCost,
         new Decimal(0)
       );

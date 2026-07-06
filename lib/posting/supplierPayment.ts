@@ -19,7 +19,7 @@ export async function postSupplierPayment(input: PostSupplierPaymentInput) {
       tx,
       input.supplierId,
       input.date,
-      input.note ?? `Payment ${payment.id}`,
+      input.note?.trim() || "Payment",
       new Decimal(0),
       input.amount
     );

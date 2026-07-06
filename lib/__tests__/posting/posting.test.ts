@@ -14,7 +14,7 @@ const mockTx = {
   purchase: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
   purchaseLine: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
   productVariant: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
-  sale: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
+  sale: { create: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn() },
   saleLine: { create: vi.fn() },
   payment: { create: vi.fn(), aggregate: vi.fn() },
   debtCollection: { create: vi.fn(), aggregate: vi.fn() },
@@ -42,6 +42,10 @@ function makeVariant(qtyOnHand: number, wacCost: number) {
     wacCost: { toString: () => String(wacCost) },
     referenceSellPrice: null,
     isOffInventory: false,
+    sizeCanonical: "315/80R22.5",
+    subLabel: null,
+    position: "NONE",
+    brand: { name: "Bridgestone" },
   };
 }
 

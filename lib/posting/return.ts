@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { computeWac } from "./wac";
 import { appendLedgerEntry } from "./ledger";
+import { variantLabel } from "./label";
 import type { PostReturnInput } from "./types";
 
 export async function postReturn(input: PostReturnInput) {
@@ -21,7 +22,14 @@ export async function postReturn(input: PostReturnInput) {
 
     const variant = await tx.productVariant.findUniqueOrThrow({
       where: { id: input.variantId },
-      select: { qtyOnHand: true, wacCost: true },
+      select: {
+        qtyOnHand: true,
+        wacCost: true,
+        sizeCanonical: true,
+        subLabel: true,
+        position: true,
+        brand: { select: { name: true } },
+      },
     });
 
     if (input.type === "SALE_RETURN") {
@@ -57,7 +65,7 @@ export async function postReturn(input: PostReturnInput) {
             tx,
             originalLine.purchase.supplierId,
             input.date,
-            input.note ?? `Purchase return ${ret.id}`,
+            input.note?.trim() || `Purchase return — ${input.qty}× ${variantLabel(variant)}`,
             new Decimal(0),
             returnValue
           );
