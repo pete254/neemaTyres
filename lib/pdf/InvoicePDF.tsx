@@ -101,19 +101,6 @@ export function InvoicePDF({ sale, shop, logoSrc }: { sale: Sale; shop: ShopInfo
           </View>
         </View>
 
-        {/* Payments */}
-        {sale.payments.length > 0 && (
-          <View style={[base.sectionBox, { marginBottom: 14 }]}>
-            <Text style={base.sectionLabel}>Payment Received</Text>
-            {sale.payments.map((p) => (
-              <View key={p.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-                <Text style={base.sectionDetail}>{p.channel}</Text>
-                <Text style={base.sectionDetail}>{fmt(p.amount)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
         {/* Terms */}
         {shop.terms.length > 0 && (
           <View style={{ marginBottom: 14 }}>

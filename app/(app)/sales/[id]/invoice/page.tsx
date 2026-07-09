@@ -118,16 +118,6 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Payment summary */}
-        {sale.payments.length > 0 && (
-          <div className="mb-6 p-3 border border-gray-200 rounded text-sm">
-            <p className="font-semibold text-gray-700 mb-1">Payment Received</p>
-            {sale.payments.map((p) => (
-              <p key={p.id} className="text-gray-600">{p.channel}: {fmt(Number(p.amount))}</p>
-            ))}
-          </div>
-        )}
-
         {/* Terms */}
         {shop.terms.length > 0 && (
           <div className="mb-6">
