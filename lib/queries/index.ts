@@ -61,3 +61,9 @@ export type {
   PurchaseDay,
   PurchaseLineItem,
 } from "./purchasesBetween";
+
+export { getPurchasePerformance } from "./purchasePerformance";
+export type {
+  PurchasePerformanceResult,
+  PurchasePerfRow,
+} from "./purchasePerformance";

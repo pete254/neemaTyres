@@ -9,6 +9,8 @@ interface FilterBarProps {
   fromStr: string;
   toStr: string;
   today: string;
+  /** Extra query params to preserve across preset/date navigation (e.g. tab, view). */
+  extraParams?: Record<string, string>;
 }
 
 function shiftDate(d: string, days: number, max: string): string {
@@ -18,10 +20,15 @@ function shiftDate(d: string, days: number, max: string): string {
   return shifted <= max ? shifted : max;
 }
 
-export function FilterBar({ basePath, fromStr, toStr, today }: FilterBarProps) {
+export function FilterBar({ basePath, fromStr, toStr, today, extraParams }: FilterBarProps) {
   const router = useRouter();
   const [from, setFrom] = useState(fromStr);
   const [to, setTo] = useState(toStr);
+
+  const buildHref = (f: string, t: string) => {
+    const p = new URLSearchParams({ ...extraParams, from: f, to: t });
+    return `${basePath}?${p.toString()}`;
+  };
 
   const todayDate = new Date(today + "T12:00:00");
   const weekDate = new Date(todayDate);
@@ -36,7 +43,7 @@ export function FilterBar({ basePath, fromStr, toStr, today }: FilterBarProps) {
     { label: "This Month", from: monthStart, to: today },
   ];
 
-  const apply = (f: string, t: string) => router.push(`${basePath}?from=${f}&to=${t}`);
+  const apply = (f: string, t: string) => router.push(buildHref(f, t));
 
   return (
     <div className="mb-6">
@@ -46,7 +53,7 @@ export function FilterBar({ basePath, fromStr, toStr, today }: FilterBarProps) {
           return (
             <Link
               key={p.label}
-              href={`${basePath}?from=${p.from}&to=${p.to}`}
+              href={buildHref(p.from, p.to)}
               className={`px-3 py-1.5 text-sm rounded border transition-colors ${
                 active
                   ? "bg-[#EAB308] border-[#EAB308] text-black font-semibold"
