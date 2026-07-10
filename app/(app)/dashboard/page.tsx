@@ -159,13 +159,14 @@ export default async function DashboardPage() {
           <p className="text-xl font-bold text-blue-400">{fmt(todayPurchases)}</p>
           <p className="text-xs text-zinc-600 mt-1">View transactions →</p>
         </Link>
-        <div className={cardBase}>
+        <Link href={`/profit?from=${todayStr}&to=${todayStr}`} className={cardLink}>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-zinc-500">Gross Profit</p>
             <ProfitIcon size={16} className={`${profitColor} opacity-70`} />
           </div>
           <p className={`text-xl font-bold ${profitColor}`}>{fmt(todayProfit)}</p>
-        </div>
+          <p className="text-xs text-zinc-600 mt-1">View breakdown →</p>
+        </Link>
       </div>
 
       {/* Overview */}

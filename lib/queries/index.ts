@@ -16,6 +16,14 @@ export type { SalesBetweenResult, SaleDay } from "./sales";
 export { getProfitByVariant } from "./profit";
 export type { VariantProfit } from "./profit";
 
+export { getProfitBreakdown } from "./profitBreakdown";
+export type {
+  ProfitBreakdownResult,
+  ProfitDay,
+  ProfitLineRow,
+  ProfitFilters,
+} from "./profitBreakdown";
+
 export { getStockOnHand } from "./stock";
 export type { StockOnHandResult, StockLine } from "./stock";
 
