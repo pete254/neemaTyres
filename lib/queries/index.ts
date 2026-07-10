@@ -62,8 +62,8 @@ export type {
   PurchaseLineItem,
 } from "./purchasesBetween";
 
-export { getPurchasePerformance } from "./purchasePerformance";
+export { getVariantPurchases } from "./variantPurchases";
 export type {
-  PurchasePerformanceResult,
-  PurchasePerfRow,
-} from "./purchasePerformance";
+  VariantPurchasesResult,
+  VariantPurchaseTxn,
+} from "./variantPurchases";

@@ -1,9 +1,20 @@
 import Link from "next/link";
-import { getPurchasesBetween, getPurchasePerformance } from "@/lib/queries";
-import type { PurchasePerfRow } from "@/lib/queries";
+import {
+  getPurchasesBetween,
+  getStockableVariants,
+  getVariantPurchases,
+} from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
 import { DeletePurchaseButton } from "./DeletePurchaseButton";
+import { SizePicker } from "../sales/SizePicker";
+import { PurchaseTxnFilter } from "./PurchaseTxnFilter";
 import Decimal from "decimal.js";
+
+const BUCKET_ORDER = ["22.5", "20", "19.5", "17.5", "16", "15", "14", "13"];
+const bucketRank = (b: string) => {
+  const i = BUCKET_ORDER.indexOf(b);
+  return i === -1 ? 99 : i;
+};
 
 const fmt = (n: Decimal | number) =>
   new Intl.NumberFormat("en-KE", {
@@ -12,7 +23,13 @@ const fmt = (n: Decimal | number) =>
   }).format(Number(n));
 
 interface PageProps {
-  searchParams: Promise<{ from?: string; to?: string; tab?: string; view?: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    tab?: string;
+    bucket?: string;
+    variant?: string;
+  }>;
 }
 
 export default async function PurchasesPage({ searchParams }: PageProps) {
@@ -71,9 +88,10 @@ export default async function PurchasesPage({ searchParams }: PageProps) {
 
       {tab === "by-type" ? (
         <ByTypeView
+          bucket={params.bucket}
+          variantId={params.variant}
           fromStr={params.from}
           toStr={params.to}
-          view={params.view === "size" ? "size" : "type"}
         />
       ) : (
         <DailyView fromStr={params.from} toStr={params.to} />
@@ -184,122 +202,224 @@ async function DailyView({
 }
 
 async function ByTypeView({
+  bucket: bucketParam,
+  variantId,
   fromStr: fromParam,
   toStr: toParam,
-  view,
 }: {
+  bucket?: string;
+  variantId?: string;
   fromStr?: string;
   toStr?: string;
-  view: "type" | "size";
 }) {
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const monthAgo = new Date(now);
-  monthAgo.setUTCDate(monthAgo.getUTCDate() - 29);
-  const fromStr = fromParam ?? monthAgo.toISOString().slice(0, 10);
-  const toStr = toParam ?? today;
+  const today = new Date().toISOString().slice(0, 10);
+  const variants = await getStockableVariants();
 
-  const from = new Date(fromStr + "T00:00:00Z");
-  const to = new Date(toStr + "T23:59:59Z");
+  // Fall back to the selected variant's bucket if none is given in the URL.
+  const selectedVariant = variantId
+    ? variants.find((v) => v.id === variantId)
+    : undefined;
+  const bucket = bucketParam ?? selectedVariant?.sizeBucket;
 
-  const perf = await getPurchasePerformance(from, to);
-
-  const hrefWith = (o: { view?: string }) => {
-    const p = new URLSearchParams({ tab: "by-type", from: fromStr, to: toStr });
-    p.set("view", o.view ?? view);
-    return `/purchases?${p.toString()}`;
-  };
-
-  const rows = view === "size" ? perf.bySize : perf.byType;
-  const maxUnits = rows.reduce((m, r) => Math.max(m, r.qty), 0) || 1;
-
-  const toggleBtn = (target: "type" | "size", label: string) => (
-    <Link
-      href={hrefWith({ view: target })}
-      className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-        view === target
-          ? "bg-[#EAB308] text-black"
-          : "bg-[#1C1C1C] border border-[#2A2A2A] text-zinc-400 hover:text-white"
-      }`}
-    >
-      {label}
-    </Link>
+  const buckets = Array.from(new Set(variants.map((v) => v.sizeBucket))).sort(
+    (a, b) => bucketRank(a) - bucketRank(b) || a.localeCompare(b)
   );
+  const bucketVariants = bucket
+    ? variants.filter((v) => v.sizeBucket === bucket)
+    : [];
+
+  // Optional date narrowing — absent means "all purchases".
+  const from = fromParam ? new Date(fromParam + "T00:00:00Z") : undefined;
+  const to = toParam ? new Date(toParam + "T23:59:59Z") : undefined;
+  const purchases = variantId ? await getVariantPurchases(variantId, from, to) : null;
 
   return (
-    <>
-      <FilterBar
-        basePath="/purchases"
-        fromStr={fromStr}
-        toStr={toStr}
-        today={today}
-        extraParams={{ tab: "by-type", view }}
-      />
+    <div className="space-y-6">
+      <div>
+        <label className="block text-xs text-zinc-500 mb-2">
+          Select a size — the tyre types in that size are listed below, most recently stocked first
+        </label>
+        <SizePicker buckets={buckets} selected={bucket} basePath="/purchases" />
+      </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      {!bucket && (
+        <p className="text-center text-zinc-500 py-12">Select a size to list its tyres.</p>
+      )}
+
+      {bucket && (
+        <>
+          <div className="flex items-center justify-between bg-[#111] border border-[#2A2A2A] rounded-lg px-4 py-3">
+            <span className="text-sm text-zinc-300">
+              Size <span className="font-semibold text-white">{bucket}&quot;</span> ·{" "}
+              {bucketVariants.length} tyre type{bucketVariants.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {/* Master-detail: tyre list (left) + purchase transactions (right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6">
+            {/* Left: tyres in this bucket */}
+            <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-hidden self-start w-full">
+              <div className="px-3 py-2 text-xs text-zinc-500 border-b border-[#1E1E1E]">
+                Tyres in {bucket}&quot;
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto">
+                {bucketVariants.map((v) => {
+                  const active = v.id === variantId;
+                  return (
+                    <Link
+                      key={v.id}
+                      href={`/purchases?tab=by-type&bucket=${encodeURIComponent(bucket)}&variant=${v.id}`}
+                      className={`flex items-center justify-between gap-2 px-3 py-2.5 border-b border-[#141414] text-sm transition-colors ${
+                        active ? "bg-[#1C1A00] text-[#EAB308]" : "text-zinc-300 hover:bg-[#141414]"
+                      }`}
+                    >
+                      <span className="truncate">{v.label}</span>
+                      <span className={`shrink-0 text-xs ${v.qtyOnHand < 1 ? "text-red-400" : "text-zinc-500"}`}>
+                        {v.qtyOnHand}
+                      </span>
+                    </Link>
+                  );
+                })}
+                {bucketVariants.length === 0 && (
+                  <p className="px-3 py-6 text-center text-zinc-600 text-sm">No tyres in this size.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Right: purchase transactions for the selected tyre */}
+            <div className="min-w-0">
+              {!variantId && (
+                <p className="text-center text-zinc-500 py-12">
+                  Select a tyre on the left to view its purchase transactions.
+                </p>
+              )}
+              {variantId && !purchases && (
+                <p className="text-center text-zinc-500 py-12">Tyre type not found.</p>
+              )}
+              {purchases && (
+                <PurchaseTxnPanel
+                  purchases={purchases}
+                  bucket={bucket}
+                  fromStr={fromParam ?? ""}
+                  toStr={toParam ?? ""}
+                  today={today}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PurchaseTxnPanel({
+  purchases,
+  bucket,
+  fromStr,
+  toStr,
+  today,
+}: {
+  purchases: NonNullable<Awaited<ReturnType<typeof getVariantPurchases>>>;
+  bucket: string;
+  fromStr: string;
+  toStr: string;
+  today: string;
+}) {
+  const ranged = Boolean(fromStr || toStr);
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-white">{purchases.label}</h3>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
-          <p className="text-xs text-zinc-500 mb-1">Units Purchased</p>
-          <p className="text-xl font-bold text-white">{perf.totalUnits}</p>
+          <p className="text-xs text-zinc-500 mb-1">Purchases</p>
+          <p className="text-xl font-bold text-white">{purchases.count}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Units Bought</p>
+          <p className="text-xl font-bold text-white">{purchases.totalQty}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Avg Unit Cost</p>
+          <p className="text-xl font-bold text-zinc-200">{fmt(purchases.avgUnitCost)}</p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Total Cost</p>
-          <p className="text-xl font-bold text-blue-400">{fmt(perf.totalCost)}</p>
+          <p className="text-xl font-bold text-blue-400">{fmt(purchases.totalCost)}</p>
         </div>
       </div>
 
-      {/* Type / Size toggle */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-zinc-500 mr-1">Group by:</span>
-        {toggleBtn("type", "Tyre Type")}
-        {toggleBtn("size", "Size")}
+      {/* Date filter (optional) */}
+      <div>
+        <p className="text-xs text-zinc-500 mb-2">
+          Showing {ranged ? "purchases in the selected range" : "all purchases"} — narrow by date:
+        </p>
+        <PurchaseTxnFilter
+          bucket={bucket}
+          variantId={purchases.variantId}
+          fromStr={fromStr}
+          toStr={toStr}
+          today={today}
+        />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      {/* Transactions */}
+      <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
-            <tr className="border-b border-[#2A2A2A] text-zinc-400 text-left">
-              <th className="pb-3 pr-4">{view === "size" ? "Size" : "Tyre Type"}</th>
-              <th className="pb-3 pr-4">{view === "size" ? "Types" : "Brand"}</th>
-              <th className="pb-3 pr-4 text-right">Units</th>
-              <th className="pb-3 pr-4 text-right">Avg Unit Cost</th>
-              <th className="pb-3 text-right">Total Cost</th>
+            <tr className="text-left text-zinc-500 border-b border-[#2A2A2A]">
+              <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Supplier</th>
+              <th className="px-4 py-3 font-medium">Terms</th>
+              <th className="px-4 py-3 font-medium text-right">Qty</th>
+              <th className="px-4 py-3 font-medium text-right">Unit Cost</th>
+              <th className="px-4 py-3 font-medium text-right">Total</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
-            {rows.map((r: PurchasePerfRow) => (
-              <tr key={r.key} className="border-b border-[#1C1C1C] hover:bg-[#111]">
-                <td className="py-2.5 pr-4 text-zinc-200">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block h-1.5 rounded-full bg-blue-500/70"
-                      style={{ width: `${Math.max(6, (r.qty / maxUnits) * 120)}px` }}
-                    />
-                    {r.label}
-                  </div>
+            {purchases.txns.map((t, i) => (
+              <tr key={`${t.purchaseId}-${i}`} className="border-t border-[#1C1C1C] hover:bg-[#111]">
+                <td className="px-4 py-2.5 text-zinc-300 whitespace-nowrap">
+                  {t.date.toISOString().slice(0, 10)}
                 </td>
-                <td className="py-2.5 pr-4 text-zinc-500 text-xs">{r.sub ?? "—"}</td>
-                <td className="py-2.5 pr-4 text-right text-white font-semibold">{r.qty}</td>
-                <td className="py-2.5 pr-4 text-right text-zinc-400">{fmt(r.avgUnitCost)}</td>
-                <td className="py-2.5 text-right text-blue-400 font-medium">{fmt(r.totalCost)}</td>
+                <td className="px-4 py-2.5 text-zinc-200">{t.supplierName}</td>
+                <td className="px-4 py-2.5 text-zinc-500 text-xs">{t.terms}</td>
+                <td className="px-4 py-2.5 text-right text-white font-semibold">{t.qty}</td>
+                <td className="px-4 py-2.5 text-right text-zinc-400">{fmt(t.unitCost)}</td>
+                <td className="px-4 py-2.5 text-right text-blue-400 font-medium">{fmt(t.lineTotal)}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <Link
+                    href={`/purchases/${t.purchaseId}/edit`}
+                    className="text-xs text-zinc-500 hover:text-white transition-colors"
+                  >
+                    View →
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-[#2A2A2A] font-semibold">
-              <td className="pt-3 pr-4 text-zinc-400 text-xs" colSpan={2}>
-                {rows.length} {view === "size" ? "size(s)" : "type(s)"}
+              <td className="px-4 py-3 text-zinc-400 text-xs" colSpan={3}>
+                {purchases.count} purchase{purchases.count !== 1 ? "s" : ""}
               </td>
-              <td className="pt-3 pr-4 text-right text-white">{perf.totalUnits}</td>
+              <td className="px-4 py-3 text-right text-white">{purchases.totalQty}</td>
               <td />
-              <td className="pt-3 text-right text-[#EAB308]">{fmt(perf.totalCost)}</td>
+              <td className="px-4 py-3 text-right text-[#EAB308]">{fmt(purchases.totalCost)}</td>
+              <td />
             </tr>
           </tfoot>
         </table>
-        {rows.length === 0 && (
-          <p className="text-center text-zinc-500 py-12">No purchases in this period.</p>
+        {purchases.txns.length === 0 && (
+          <p className="text-center text-zinc-500 py-12">
+            No purchases for this tyre{ranged ? " in the selected range" : ""}.
+          </p>
         )}
       </div>
-    </>
+    </div>
   );
 }

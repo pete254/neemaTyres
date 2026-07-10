@@ -8,9 +8,11 @@ const inputClass =
 export function SizePicker({
   buckets,
   selected,
+  basePath = "/sales",
 }: {
   buckets: string[];
   selected?: string;
+  basePath?: string;
 }) {
   const router = useRouter();
 
@@ -19,8 +21,8 @@ export function SizePicker({
       value={selected ?? ""}
       onChange={(e) => {
         const b = e.target.value;
-        // Changing size clears the current tyre selection.
-        router.push(b ? `/sales?tab=by-type&bucket=${encodeURIComponent(b)}` : "/sales?tab=by-type");
+        // Changing size clears the current tyre selection (and any date filter).
+        router.push(b ? `${basePath}?tab=by-type&bucket=${encodeURIComponent(b)}` : `${basePath}?tab=by-type`);
       }}
       className={`${inputClass} w-full sm:w-56`}
     >
