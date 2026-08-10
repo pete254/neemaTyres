@@ -6,6 +6,8 @@ export interface SaleLine {
   qty: number;
   unitPrice: Decimal;
   lineTotal: Decimal;
+  unitCost: Decimal;
+  grossProfit: Decimal;
 }
 
 export interface SaleGroup {
@@ -15,6 +17,10 @@ export interface SaleGroup {
   customerName: string | null;
   total: Decimal;
   channels: string;
+  /** Sum of line totals (goods value) — the revenue base for profit. */
+  salesValue: Decimal;
+  cogs: Decimal;
+  grossProfit: Decimal;
   lines: SaleLine[];
 }
 
@@ -25,6 +31,7 @@ export interface SaleDay {
   mpesa: Decimal;
   debt: Decimal;
   revenue: Decimal;
+  grossProfit: Decimal;
   saleGroups: SaleGroup[];
   lines: Array<{
     saleId: string;
@@ -34,6 +41,8 @@ export interface SaleDay {
     qty: number;
     unitPrice: Decimal;
     lineTotal: Decimal;
+    unitCost: Decimal;
+    grossProfit: Decimal;
   }>;
 }
 
@@ -44,6 +53,7 @@ export interface SalesBetweenResult {
   totalCash: Decimal;
   totalMpesa: Decimal;
   totalDebt: Decimal;
+  totalGrossProfit: Decimal;
   days: SaleDay[];
 }
 
@@ -73,6 +83,7 @@ export async function getSalesBetween(
   let totalCash = new Decimal(0);
   let totalMpesa = new Decimal(0);
   let totalDebt = new Decimal(0);
+  let totalGrossProfit = new Decimal(0);
 
   const days: SaleDay[] = Array.from(byDay.entries()).map(
     ([date, daySales]) => {
@@ -91,16 +102,24 @@ export async function getSalesBetween(
       totalDebt = totalDebt.plus(debt);
 
       const lines = daySales.flatMap((sale) =>
-        sale.lines.map((line) => ({
-          saleId: sale.id,
-          saleDate: sale.date,
-          customerName: sale.customer?.name ?? null,
-          variantLabel: `${line.variant.sizeCanonical} ${line.variant.brand.name}${line.variant.subLabel ? ` ${line.variant.subLabel}` : ""}`.trim(),
-          qty: line.qty,
-          unitPrice: new Decimal(line.unitPrice.toString()),
-          lineTotal: new Decimal(line.lineTotal.toString()),
-        }))
+        sale.lines.map((line) => {
+          const lineTotal = new Decimal(line.lineTotal.toString());
+          const unitCost = new Decimal(line.unitCostAtSale.toString());
+          return {
+            saleId: sale.id,
+            saleDate: sale.date,
+            customerName: sale.customer?.name ?? null,
+            variantLabel: `${line.variant.sizeCanonical} ${line.variant.brand.name}${line.variant.subLabel ? ` ${line.variant.subLabel}` : ""}`.trim(),
+            qty: line.qty,
+            unitPrice: new Decimal(line.unitPrice.toString()),
+            lineTotal,
+            unitCost,
+            grossProfit: lineTotal.minus(unitCost.mul(line.qty)),
+          };
+        })
       );
+
+      let dayGrossProfit = new Decimal(0);
 
       const saleGroups: SaleGroup[] = daySales.map((sale) => {
         const total = sale.payments.reduce(
@@ -108,6 +127,31 @@ export async function getSalesBetween(
           new Decimal(0)
         );
         const channels = [...new Set(sale.payments.map((p) => p.channel))].join(", ");
+
+        const groupLines: SaleLine[] = sale.lines.map((line) => {
+          const lineTotal = new Decimal(line.lineTotal.toString());
+          const unitCost = new Decimal(line.unitCostAtSale.toString());
+          return {
+            variantLabel: `${line.variant.sizeCanonical} ${line.variant.brand.name}${line.variant.subLabel ? ` ${line.variant.subLabel}` : ""}`.trim(),
+            qty: line.qty,
+            unitPrice: new Decimal(line.unitPrice.toString()),
+            lineTotal,
+            unitCost,
+            grossProfit: lineTotal.minus(unitCost.mul(line.qty)),
+          };
+        });
+
+        const salesValue = groupLines.reduce(
+          (sum, l) => sum.plus(l.lineTotal),
+          new Decimal(0)
+        );
+        const cogs = groupLines.reduce(
+          (sum, l) => sum.plus(l.unitCost.mul(l.qty)),
+          new Decimal(0)
+        );
+        const grossProfit = salesValue.minus(cogs);
+        dayGrossProfit = dayGrossProfit.plus(grossProfit);
+
         return {
           saleId: sale.id,
           invoiceNo: sale.invoiceNo ?? null,
@@ -115,14 +159,14 @@ export async function getSalesBetween(
           customerName: sale.customer?.name ?? null,
           total,
           channels,
-          lines: sale.lines.map((line) => ({
-            variantLabel: `${line.variant.sizeCanonical} ${line.variant.brand.name}${line.variant.subLabel ? ` ${line.variant.subLabel}` : ""}`.trim(),
-            qty: line.qty,
-            unitPrice: new Decimal(line.unitPrice.toString()),
-            lineTotal: new Decimal(line.lineTotal.toString()),
-          })),
+          salesValue,
+          cogs,
+          grossProfit,
+          lines: groupLines,
         };
       });
+
+      totalGrossProfit = totalGrossProfit.plus(dayGrossProfit);
 
       return {
         date,
@@ -131,6 +175,7 @@ export async function getSalesBetween(
         mpesa,
         debt,
         revenue: cash.plus(mpesa).plus(debt),
+        grossProfit: dayGrossProfit,
         saleGroups,
         lines,
       };
@@ -144,6 +189,7 @@ export async function getSalesBetween(
     totalMpesa,
     totalDebt,
     totalRevenue: totalCash.plus(totalMpesa).plus(totalDebt),
+    totalGrossProfit,
     days,
   };
 }

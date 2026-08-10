@@ -145,6 +145,7 @@ describe("getSalesBetween", () => {
             qty: 1,
             unitPrice: { toString: () => "8000" },
             lineTotal: { toString: () => "8000" },
+            unitCostAtSale: { toString: () => "5000" },
             variant: { ...mockVariant, brand: mockBrand },
           },
         ],
@@ -162,6 +163,11 @@ describe("getSalesBetween", () => {
     expect(result.totalRevenue.toNumber()).toBe(8000);
     expect(result.totalCash.toNumber()).toBe(5000);
     expect(result.totalMpesa.toNumber()).toBe(3000);
+    // Gross profit = lineTotal 8000 − cost (5000 × 1) = 3000
+    expect(result.days[0].grossProfit.toNumber()).toBe(3000);
+    expect(result.totalGrossProfit.toNumber()).toBe(3000);
+    expect(result.days[0].saleGroups[0].grossProfit.toNumber()).toBe(3000);
+    expect(result.days[0].saleGroups[0].lines[0].grossProfit.toNumber()).toBe(3000);
   });
 
   it("returns empty when no sales", async () => {

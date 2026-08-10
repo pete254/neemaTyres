@@ -6,8 +6,8 @@ import {
 } from "@/lib/queries";
 import type { LedgerRow } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
-import { DeleteSaleButton } from "./DeleteSaleButton";
 import { SizePicker } from "./SizePicker";
+import { SaleCard } from "./SaleCard";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number) =>
@@ -96,11 +96,17 @@ async function DailyView({
       <FilterBar basePath="/sales" fromStr={fromStr} toStr={toStr} today={today} />
 
       {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Total Revenue</p>
           <p className="text-xl font-bold text-[#EAB308]">
             {fmt(report.totalRevenue)}
+          </p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Gross Profit</p>
+          <p className="text-xl font-bold text-green-400">
+            {fmt(report.totalGrossProfit)}
           </p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
@@ -124,68 +130,33 @@ async function DailyView({
             <h3 className="text-sm font-semibold text-zinc-300">{day.date}</h3>
             <span className="text-sm text-zinc-500">
               {day.salesCount} sale{day.salesCount !== 1 ? "s" : ""} &middot;{" "}
-              {fmt(day.revenue)}
+              {fmt(day.revenue)} &middot;{" "}
+              <span className="text-green-400">{fmt(day.grossProfit)} profit</span>
             </span>
           </div>
 
           <div className="space-y-4">
             {day.saleGroups.map((sale) => (
-              <div
+              <SaleCard
                 key={sale.saleId}
-                className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg p-4"
-              >
-                {/* Sale header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <span className="text-sm font-medium text-white">
-                      {sale.customerName ?? "Walk-in"}
-                    </span>
-                    <span className="ml-2 text-xs text-zinc-500">{sale.channels}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[#EAB308]">
-                      {fmt(sale.total)}
-                    </span>
-                    <Link
-                      href={`/sales/${sale.saleId}/invoice`}
-                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
-                    >
-                      Invoice
-                    </Link>
-                    <Link
-                      href={`/sales/${sale.saleId}/delivery-note`}
-                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
-                    >
-                      Delivery
-                    </Link>
-                    <Link
-                      href={`/sales/${sale.saleId}/edit`}
-                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
-                    >
-                      Edit
-                    </Link>
-                    <DeleteSaleButton saleId={sale.saleId} />
-                  </div>
-                </div>
-
-                {/* Lines */}
-                <table className="w-full text-sm">
-                  <tbody>
-                    {sale.lines.map((line, i) => (
-                      <tr key={i} className="border-t border-[#1C1C1C]">
-                        <td className="py-1.5 pr-4 text-zinc-300">{line.variantLabel}</td>
-                        <td className="py-1.5 pr-4 text-right text-zinc-500">×{line.qty}</td>
-                        <td className="py-1.5 pr-4 text-right text-zinc-400">
-                          {fmt(line.unitPrice)}
-                        </td>
-                        <td className="py-1.5 text-right text-zinc-200 font-medium">
-                          {fmt(line.lineTotal)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                sale={{
+                  saleId: sale.saleId,
+                  customerName: sale.customerName,
+                  channels: sale.channels,
+                  total: Number(sale.total),
+                  salesValue: Number(sale.salesValue),
+                  cogs: Number(sale.cogs),
+                  grossProfit: Number(sale.grossProfit),
+                }}
+                lines={sale.lines.map((line) => ({
+                  variantLabel: line.variantLabel,
+                  qty: line.qty,
+                  unitPrice: Number(line.unitPrice),
+                  lineTotal: Number(line.lineTotal),
+                  unitCost: Number(line.unitCost),
+                  grossProfit: Number(line.grossProfit),
+                }))}
+              />
             ))}
           </div>
         </div>

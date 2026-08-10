@@ -55,10 +55,14 @@ export default async function ReportsPage({ searchParams }: PageProps) {
       <ReportsFilter fromStr={fromStr} toStr={toStr} today={today} />
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Total Revenue</p>
           <p className="text-xl font-bold text-[#EAB308]">{fmt(report.totalRevenue)}</p>
+        </div>
+        <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
+          <p className="text-xs text-zinc-500 mb-1">Gross Profit</p>
+          <p className="text-xl font-bold text-green-400">{fmt(report.totalGrossProfit)}</p>
         </div>
         <div className="bg-[#111] border border-[#2A2A2A] rounded-lg p-4">
           <p className="text-xs text-zinc-500 mb-1">Cash</p>
@@ -103,7 +107,8 @@ export default async function ReportsPage({ searchParams }: PageProps) {
               <th className="pb-3 pr-4 text-right">Cash</th>
               <th className="pb-3 pr-4 text-right">M-Pesa</th>
               <th className="pb-3 pr-4 text-right">Debt</th>
-              <th className="pb-3 text-right">Revenue</th>
+              <th className="pb-3 pr-4 text-right">Revenue</th>
+              <th className="pb-3 text-right">Profit</th>
             </tr>
           </thead>
           <tbody>
@@ -114,7 +119,8 @@ export default async function ReportsPage({ searchParams }: PageProps) {
                 <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.cash)}</td>
                 <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.mpesa)}</td>
                 <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.debt)}</td>
-                <td className="py-3 text-right font-semibold text-white">{fmt(d.revenue)}</td>
+                <td className="py-3 pr-4 text-right font-semibold text-white">{fmt(d.revenue)}</td>
+                <td className="py-3 text-right font-semibold text-green-400">{fmt(d.grossProfit)}</td>
               </tr>
             ))}
           </tbody>
