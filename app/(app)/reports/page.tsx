@@ -1,6 +1,7 @@
 import { getSalesBetween, getReportSummary } from "@/lib/queries";
 import Decimal from "decimal.js";
 import ReportsFilter from "./ReportsFilter";
+import { DailyBreakdown, type DayRow } from "./DailyBreakdown";
 
 const fmt = (n: Decimal | number | string) =>
   new Intl.NumberFormat("en-KE", {
@@ -38,6 +39,33 @@ export default async function ReportsPage({ searchParams }: PageProps) {
   ]);
 
   const pdfUrl = `/api/pdf/report?from=${fromStr}&to=${toStr}`;
+
+  const dayRows: DayRow[] = report.days.map((d) => ({
+    date: d.date,
+    salesCount: d.salesCount,
+    cash: Number(d.cash),
+    mpesa: Number(d.mpesa),
+    debt: Number(d.debt),
+    revenue: Number(d.revenue),
+    grossProfit: Number(d.grossProfit),
+    saleGroups: d.saleGroups.map((s) => ({
+      saleId: s.saleId,
+      customerName: s.customerName,
+      channels: s.channels,
+      total: Number(s.total),
+      salesValue: Number(s.salesValue),
+      cogs: Number(s.cogs),
+      grossProfit: Number(s.grossProfit),
+      lines: s.lines.map((line) => ({
+        variantLabel: line.variantLabel,
+        qty: line.qty,
+        unitPrice: Number(line.unitPrice),
+        lineTotal: Number(line.lineTotal),
+        unitCost: Number(line.unitCost),
+        grossProfit: Number(line.grossProfit),
+      })),
+    })),
+  }));
 
   return (
     <div className="p-6">
@@ -98,37 +126,10 @@ export default async function ReportsPage({ searchParams }: PageProps) {
       <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
         Daily Breakdown
       </h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[#2A2A2A] text-zinc-400 text-left">
-              <th className="pb-3 pr-4">Date</th>
-              <th className="pb-3 pr-4 text-right">Sales</th>
-              <th className="pb-3 pr-4 text-right">Cash</th>
-              <th className="pb-3 pr-4 text-right">M-Pesa</th>
-              <th className="pb-3 pr-4 text-right">Debt</th>
-              <th className="pb-3 pr-4 text-right">Revenue</th>
-              <th className="pb-3 text-right">Profit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.days.map((d) => (
-              <tr key={d.date} className="border-b border-[#1C1C1C] hover:bg-[#111]">
-                <td className="py-3 pr-4 text-zinc-300">{d.date}</td>
-                <td className="py-3 pr-4 text-right text-zinc-400">{d.salesCount}</td>
-                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.cash)}</td>
-                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.mpesa)}</td>
-                <td className="py-3 pr-4 text-right text-zinc-300">{fmt(d.debt)}</td>
-                <td className="py-3 pr-4 text-right font-semibold text-white">{fmt(d.revenue)}</td>
-                <td className="py-3 text-right font-semibold text-green-400">{fmt(d.grossProfit)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {report.days.length === 0 && (
-          <p className="text-center text-zinc-500 py-12">No sales in this period.</p>
-        )}
-      </div>
+      <p className="text-xs text-zinc-500 mb-3">
+        Click any day for its full sale-by-sale breakdown.
+      </p>
+      <DailyBreakdown days={dayRows} />
     </div>
   );
 }
