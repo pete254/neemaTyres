@@ -21,6 +21,10 @@ interface StatementData {
     poBox: string | null;
   };
   entries: StatementRow[];
+  from: string | null;
+  to: string | null;
+  filterNotes: string[];
+  openingBalance: string | null;
   totalDebit: string;
   totalCredit: string;
   closingBalance: string;
@@ -42,10 +46,9 @@ export function SupplierStatementPDF({
   logoSrc?: string;
 }) {
   const { supplier } = data;
-  const period =
-    data.entries.length > 0
-      ? `${dateStr(data.entries[0].date)} — ${dateStr(data.entries[data.entries.length - 1].date)}`
-      : "No entries";
+  const first = data.from ?? data.entries[0]?.date;
+  const last = data.to ?? data.entries[data.entries.length - 1]?.date;
+  const period = first && last ? `${dateStr(first)} — ${dateStr(last)}` : "No entries";
 
   return (
     <Document title={`Statement — ${supplier.name}`}>
@@ -69,6 +72,9 @@ export function SupplierStatementPDF({
             <Text style={base.docType}>Statement</Text>
             <Text style={base.docMeta}>Period: {period}</Text>
             <Text style={base.docMeta}>Generated: {dateStr(data.generatedOn)}</Text>
+            {data.filterNotes.map((n) => (
+              <Text key={n} style={base.docMeta}>{n}</Text>
+            ))}
           </View>
         </View>
 
@@ -85,8 +91,11 @@ export function SupplierStatementPDF({
           </View>
           <View style={{ width: "38%", gap: 6 }}>
             {[
-              { label: "Total Purchases", value: fmt(data.totalDebit) },
-              { label: "Total Payments & Credits", value: fmt(data.totalCredit) },
+              ...(data.openingBalance !== null
+                ? [{ label: "Balance Brought Forward", value: fmt(data.openingBalance) }]
+                : []),
+              { label: "Total Debits (Purchases)", value: fmt(data.totalDebit) },
+              { label: "Total Credits (Payments & Returns)", value: fmt(data.totalCredit) },
             ].map((t) => (
               <View key={t.label} style={{ backgroundColor: LIGHT, borderRadius: 4, padding: 6 }}>
                 <Text style={{ fontSize: 7, color: GRAY, marginBottom: 2 }}>{t.label}</Text>
@@ -94,7 +103,9 @@ export function SupplierStatementPDF({
               </View>
             ))}
             <View style={{ borderWidth: 1, borderColor: PURPLE, borderRadius: 4, padding: 6 }}>
-              <Text style={{ fontSize: 7, color: GRAY, marginBottom: 2 }}>Balance Due</Text>
+              <Text style={{ fontSize: 7, color: GRAY, marginBottom: 2 }}>
+                {data.to ? `Balance Due as at ${dateStr(data.to)}` : "Balance Due"}
+              </Text>
               <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: PURPLE }}>{fmt(data.closingBalance)}</Text>
             </View>
           </View>
@@ -109,6 +120,16 @@ export function SupplierStatementPDF({
           <Text style={[base.tableHeaderCell, { width: COL.balance, textAlign: "right" }]}>Balance</Text>
         </View>
 
+        {data.openingBalance !== null && data.from && (
+          <View style={base.tableRow} wrap={false}>
+            <Text style={[base.tableCellGray, { width: COL.date }]}>{dateStr(data.from)}</Text>
+            <Text style={[base.tableCellGray, { width: COL.desc, fontStyle: "italic" }]}>Balance brought forward</Text>
+            <Text style={{ width: COL.debit }} />
+            <Text style={{ width: COL.credit }} />
+            <Text style={[base.tableCell, { width: COL.balance, textAlign: "right", fontFamily: "Helvetica-Bold" }]}>{fmt(data.openingBalance)}</Text>
+          </View>
+        )}
+
         {data.entries.map((e, i) => (
           <View key={e.id} style={[base.tableRow, i % 2 === 1 ? base.tableRowAlt : {}]} wrap={false}>
             <Text style={[base.tableCellGray, { width: COL.date }]}>{dateStr(e.date)}</Text>
@@ -120,7 +141,7 @@ export function SupplierStatementPDF({
         ))}
 
         {data.entries.length === 0 && (
-          <Text style={{ fontSize: 9, color: GRAY, textAlign: "center", paddingVertical: 20 }}>No ledger entries.</Text>
+          <Text style={{ fontSize: 9, color: GRAY, textAlign: "center", paddingVertical: 20 }}>No entries for this period.</Text>
         )}
 
         {/* Totals */}

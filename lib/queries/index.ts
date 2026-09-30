@@ -6,7 +6,12 @@ export {
   getSupplierPayments,
   getSupplierPaymentById,
   hideReversalPairs,
+  getFilteredSupplierStatement,
+  parseStatementFilters,
+  statementFiltersToQuery,
+  statementEntryType,
 } from "./suppliers";
+export type { StatementFilters } from "./suppliers";
 export { getDailyReport, getReportSummary } from "./reports";
 export { getExceptionFlags } from "./exceptions";
 export { getVariants } from "./variants";
