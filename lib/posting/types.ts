@@ -52,6 +52,14 @@ export interface PostSupplierPaymentInput {
   recordedById: string;
 }
 
+export interface UpdateSupplierPaymentInput {
+  id: string;
+  supplierId: string;
+  amount: Decimal;
+  date: Date;
+  note?: string;
+}
+
 export interface PostReturnInput {
   type: ReturnType;
   originalSaleLineId?: string;
