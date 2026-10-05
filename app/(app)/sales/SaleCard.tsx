@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { DeleteSaleButton } from "./DeleteSaleButton";
+import { SaleSelectCheckbox } from "./BulkInvoiceSelection";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-KE", {
@@ -21,6 +22,7 @@ export interface SaleCardLine {
 
 export interface SaleCardData {
   saleId: string;
+  customerId?: string | null;
   customerName: string | null;
   channels: string;
   total: number;
@@ -50,11 +52,19 @@ export function SaleCard({
     <div className="bg-[#0D0D0D] border border-[#1E1E1E] rounded-lg p-4">
       {/* Sale header */}
       <div className="flex items-center justify-between mb-3">
-        <div>
+        <div className="flex items-center gap-2">
+          <SaleSelectCheckbox
+            sale={{
+              saleId: sale.saleId,
+              customerId: sale.customerId ?? null,
+              customerName: sale.customerName,
+              total: sale.total,
+            }}
+          />
           <span className="text-sm font-medium text-white">
             {sale.customerName ?? "Walk-in"}
           </span>
-          <span className="ml-2 text-xs text-zinc-500">{sale.channels}</span>
+          <span className="text-xs text-zinc-500">{sale.channels}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-[#EAB308]">

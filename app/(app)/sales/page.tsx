@@ -8,6 +8,7 @@ import type { LedgerRow } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
 import { SizePicker } from "./SizePicker";
 import { SaleCard } from "./SaleCard";
+import { BulkInvoiceSelection } from "./BulkInvoiceSelection";
 import Decimal from "decimal.js";
 
 const fmt = (n: Decimal | number) =>
@@ -123,44 +124,54 @@ async function DailyView({
         </div>
       </div>
 
-      {/* Per-day, per-sale breakdown */}
-      {report.days.map((day) => (
-        <div key={day.date} className="mb-8">
-          <div className="flex items-center justify-between mb-3 py-2 border-b border-[#2A2A2A]">
-            <h3 className="text-sm font-semibold text-zinc-300">{day.date}</h3>
-            <span className="text-sm text-zinc-500">
-              {day.salesCount} sale{day.salesCount !== 1 ? "s" : ""} &middot;{" "}
-              {fmt(day.revenue)} &middot;{" "}
-              <span className="text-green-400">{fmt(day.grossProfit)} profit</span>
-            </span>
-          </div>
+      {report.days.length > 0 && (
+        <p className="text-xs text-zinc-500 mb-4">
+          Tick sales for the same customer to generate one combined invoice.
+          Widen the date range to include older sales.
+        </p>
+      )}
 
-          <div className="space-y-4">
-            {day.saleGroups.map((sale) => (
-              <SaleCard
-                key={sale.saleId}
-                sale={{
-                  saleId: sale.saleId,
-                  customerName: sale.customerName,
-                  channels: sale.channels,
-                  total: Number(sale.total),
-                  salesValue: Number(sale.salesValue),
-                  cogs: Number(sale.cogs),
-                  grossProfit: Number(sale.grossProfit),
-                }}
-                lines={sale.lines.map((line) => ({
-                  variantLabel: line.variantLabel,
-                  qty: line.qty,
-                  unitPrice: Number(line.unitPrice),
-                  lineTotal: Number(line.lineTotal),
-                  unitCost: Number(line.unitCost),
-                  grossProfit: Number(line.grossProfit),
-                }))}
-              />
-            ))}
+      {/* Per-day, per-sale breakdown */}
+      <BulkInvoiceSelection>
+        {report.days.map((day) => (
+          <div key={day.date} className="mb-8">
+            <div className="flex items-center justify-between mb-3 py-2 border-b border-[#2A2A2A]">
+              <h3 className="text-sm font-semibold text-zinc-300">{day.date}</h3>
+              <span className="text-sm text-zinc-500">
+                {day.salesCount} sale{day.salesCount !== 1 ? "s" : ""} &middot;{" "}
+                {fmt(day.revenue)} &middot;{" "}
+                <span className="text-green-400">{fmt(day.grossProfit)} profit</span>
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {day.saleGroups.map((sale) => (
+                <SaleCard
+                  key={sale.saleId}
+                  sale={{
+                    saleId: sale.saleId,
+                    customerId: sale.customerId,
+                    customerName: sale.customerName,
+                    channels: sale.channels,
+                    total: Number(sale.total),
+                    salesValue: Number(sale.salesValue),
+                    cogs: Number(sale.cogs),
+                    grossProfit: Number(sale.grossProfit),
+                  }}
+                  lines={sale.lines.map((line) => ({
+                    variantLabel: line.variantLabel,
+                    qty: line.qty,
+                    unitPrice: Number(line.unitPrice),
+                    lineTotal: Number(line.lineTotal),
+                    unitCost: Number(line.unitCost),
+                    grossProfit: Number(line.grossProfit),
+                  }))}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </BulkInvoiceSelection>
 
       {report.days.length === 0 && (
         <p className="text-center text-zinc-500 py-12">No sales in this period.</p>
