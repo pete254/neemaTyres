@@ -59,10 +59,14 @@ export interface SalesBetweenResult {
 
 export async function getSalesBetween(
   from: Date,
-  to: Date
+  to: Date,
+  opts: { customerId?: string } = {}
 ): Promise<SalesBetweenResult> {
   const sales = await prisma.sale.findMany({
-    where: { date: { gte: from, lte: to } },
+    where: {
+      date: { gte: from, lte: to },
+      ...(opts.customerId ? { customerId: opts.customerId } : {}),
+    },
     include: {
       payments: true,
       lines: {
@@ -192,4 +196,14 @@ export async function getSalesBetween(
     totalGrossProfit,
     days,
   };
+}
+
+/** Date of a customer's first sale, or null if they have none. */
+export async function getCustomerFirstSaleDate(customerId: string) {
+  const first = await prisma.sale.findFirst({
+    where: { customerId },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  });
+  return first?.date ?? null;
 }

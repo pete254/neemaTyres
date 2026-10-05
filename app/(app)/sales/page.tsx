@@ -1,12 +1,15 @@
 import Link from "next/link";
 import {
+  getCustomers,
+  getCustomerFirstSaleDate,
   getSalesBetween,
   getStockableVariants,
   getVariantStockLedger,
 } from "@/lib/queries";
-import type { LedgerRow } from "@/lib/queries";
+import type { LedgerRow, SalesBetweenResult } from "@/lib/queries";
 import { FilterBar } from "@/components/FilterBar";
 import { SizePicker } from "./SizePicker";
+import { CustomerSelect } from "./CustomerSelect";
 import { SaleCard } from "./SaleCard";
 import { BulkInvoiceSelection } from "./BulkInvoiceSelection";
 import Decimal from "decimal.js";
@@ -24,12 +27,14 @@ interface PageProps {
     tab?: string;
     bucket?: string;
     variant?: string;
+    customer?: string;
   }>;
 }
 
 export default async function SalesPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const tab = params.tab === "by-type" ? "by-type" : "daily";
+  const tab =
+    params.tab === "by-type" || params.tab === "by-customer" ? params.tab : "daily";
 
   return (
     <div className="p-6">
@@ -65,10 +70,26 @@ export default async function SalesPage({ searchParams }: PageProps) {
         >
           By Type
         </Link>
+        <Link
+          href="/sales?tab=by-customer"
+          className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+            tab === "by-customer"
+              ? "border-[#EAB308] text-[#EAB308]"
+              : "border-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          By Customer
+        </Link>
       </div>
 
       {tab === "by-type" ? (
         <ByTypeView bucket={params.bucket} variantId={params.variant} />
+      ) : tab === "by-customer" ? (
+        <ByCustomerView
+          customerId={params.customer}
+          fromStr={params.from}
+          toStr={params.to}
+        />
       ) : (
         <DailyView fromStr={params.from} toStr={params.to} />
       )}
@@ -95,6 +116,21 @@ async function DailyView({
   return (
     <>
       <FilterBar basePath="/sales" fromStr={fromStr} toStr={toStr} today={today} />
+      <SalesReportBody report={report} />
+    </>
+  );
+}
+
+/** Summary tiles + per-day sale cards (with combined-invoice selection). */
+function SalesReportBody({
+  report,
+  hint = "Tick sales for the same customer to generate one combined invoice. Widen the date range to include older sales.",
+}: {
+  report: SalesBetweenResult;
+  hint?: string;
+}) {
+  return (
+    <>
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
@@ -126,8 +162,7 @@ async function DailyView({
 
       {report.days.length > 0 && (
         <p className="text-xs text-zinc-500 mb-4">
-          Tick sales for the same customer to generate one combined invoice.
-          Widen the date range to include older sales.
+          {hint}
         </p>
       )}
 
@@ -176,6 +211,94 @@ async function DailyView({
       {report.days.length === 0 && (
         <p className="text-center text-zinc-500 py-12">No sales in this period.</p>
       )}
+    </>
+  );
+}
+
+async function ByCustomerView({
+  customerId,
+  fromStr: fromParam,
+  toStr: toParam,
+}: {
+  customerId?: string;
+  fromStr?: string;
+  toStr?: string;
+}) {
+  const customers = await getCustomers();
+  const customer = customerId ? customers.find((c) => c.id === customerId) : undefined;
+
+  const picker = (
+    <div className="mb-6">
+      <label className="block text-xs text-zinc-500 mb-2">
+        Customer
+      </label>
+      <CustomerSelect
+        customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+        selected={customer?.id}
+      />
+    </div>
+  );
+
+  if (!customer) {
+    return (
+      <>
+        {picker}
+        <p className="text-center text-zinc-500 py-12">
+          {customerId ? "Customer not found." : "Select a customer to see their sales."}
+        </p>
+      </>
+    );
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Default to the customer's full history.
+  const firstSale = await getCustomerFirstSaleDate(customer.id);
+  const allTimeFrom = (firstSale ?? new Date()).toISOString().slice(0, 10);
+  const fromStr = fromParam ?? allTimeFrom;
+  const toStr = toParam ?? today;
+
+  const report = await getSalesBetween(
+    new Date(fromStr + "T00:00:00Z"),
+    new Date(toStr + "T23:59:59Z"),
+    { customerId: customer.id }
+  );
+  const salesCount = report.days.reduce((n, d) => n + d.salesCount, 0);
+
+  return (
+    <>
+      {picker}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <p className="text-sm text-zinc-400">
+          <span className="text-white font-semibold">{customer.name}</span>
+          {" · "}
+          {salesCount} sale{salesCount === 1 ? "" : "s"} in range
+        </p>
+        <Link
+          href={`/customers/${customer.id}`}
+          className="text-sm text-[#EAB308] hover:underline"
+        >
+          Customer profile →
+        </Link>
+      </div>
+
+      <FilterBar
+        key={`${customer.id}-${fromStr}-${toStr}`}
+        basePath="/sales"
+        fromStr={fromStr}
+        toStr={toStr}
+        today={today}
+        extraQuery={`tab=by-customer&customer=${customer.id}`}
+        extraPresets={[
+          { label: "This Year", from: `${today.slice(0, 4)}-01-01`, to: today },
+          { label: "All Time", from: allTimeFrom, to: today },
+        ]}
+      />
+
+      <SalesReportBody
+        report={report}
+        hint={`Tick sales to generate one combined invoice for ${customer.name}.`}
+      />
     </>
   );
 }

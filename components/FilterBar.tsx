@@ -9,6 +9,10 @@ interface FilterBarProps {
   fromStr: string;
   toStr: string;
   today: string;
+  /** Extra query params kept when the range changes, e.g. "tab=by-customer&customer=…". */
+  extraQuery?: string;
+  /** Additional preset buttons shown after Today / This Week / This Month. */
+  extraPresets?: { label: string; from: string; to: string }[];
 }
 
 function shiftDate(d: string, days: number, max: string): string {
@@ -18,7 +22,7 @@ function shiftDate(d: string, days: number, max: string): string {
   return shifted <= max ? shifted : max;
 }
 
-export function FilterBar({ basePath, fromStr, toStr, today }: FilterBarProps) {
+export function FilterBar({ basePath, fromStr, toStr, today, extraQuery, extraPresets = [] }: FilterBarProps) {
   const router = useRouter();
   const [from, setFrom] = useState(fromStr);
   const [to, setTo] = useState(toStr);
@@ -34,9 +38,11 @@ export function FilterBar({ basePath, fromStr, toStr, today }: FilterBarProps) {
     { label: "Today", from: today, to: today },
     { label: "This Week", from: weekStart, to: today },
     { label: "This Month", from: monthStart, to: today },
+    ...extraPresets,
   ];
 
-  const apply = (f: string, t: string) => router.push(`${basePath}?from=${f}&to=${t}`);
+  const prefix = extraQuery ? `${basePath}?${extraQuery}&` : `${basePath}?`;
+  const apply = (f: string, t: string) => router.push(`${prefix}from=${f}&to=${t}`);
 
   return (
     <div className="mb-6">
@@ -46,7 +52,7 @@ export function FilterBar({ basePath, fromStr, toStr, today }: FilterBarProps) {
           return (
             <Link
               key={p.label}
-              href={`${basePath}?from=${p.from}&to=${p.to}`}
+              href={`${prefix}from=${p.from}&to=${p.to}`}
               className={`px-3 py-1.5 text-sm rounded border transition-colors ${
                 active
                   ? "bg-[#EAB308] border-[#EAB308] text-black font-semibold"

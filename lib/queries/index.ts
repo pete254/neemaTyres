@@ -21,7 +21,7 @@ export { getCustomers } from "./customers";
 export { getCustomerDebt } from "./customerDebt";
 export type { CustomerDebtResult, CustomerDebtLine } from "./customerDebt";
 
-export { getSalesBetween } from "./sales";
+export { getSalesBetween, getCustomerFirstSaleDate } from "./sales";
 export type { SalesBetweenResult, SaleDay } from "./sales";
 
 export { getProfitByVariant } from "./profit";
