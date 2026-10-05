@@ -18,8 +18,8 @@ export { getVariants } from "./variants";
 export { getCustomers } from "./customers";
 
 // Phase 6 — predetermined query layer
-export { getCustomerDebt } from "./customerDebt";
-export type { CustomerDebtResult, CustomerDebtLine } from "./customerDebt";
+export { getCustomerDebt, getCustomerSaleBalances } from "./customerDebt";
+export type { CustomerDebtResult, CustomerDebtLine, SaleBalance } from "./customerDebt";
 
 export { getSalesBetween, getCustomerFirstSaleDate } from "./sales";
 export type { SalesBetweenResult, SaleDay } from "./sales";

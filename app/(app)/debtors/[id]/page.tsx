@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Decimal from "decimal.js";
+import { getCustomerSaleBalances } from "@/lib/queries";
+import { DebtorInvoices } from "./DebtorInvoices";
 
 const fmt = (n: Decimal | number) =>
   new Intl.NumberFormat("en-KE", {
@@ -30,6 +32,19 @@ export default async function CustomerLedgerPage({ params }: PageProps) {
   });
 
   if (!customer) notFound();
+
+  const balances = await getCustomerSaleBalances(id);
+  const invoiceRows = (balances?.sales ?? [])
+    .map((b) => ({
+      saleId: b.saleId,
+      invoiceNo: b.invoiceNo ?? b.saleId.slice(-8).toUpperCase(),
+      date: b.date.toISOString(),
+      items: b.items,
+      total: Number(b.total),
+      paid: Number(b.paid),
+      outstanding: Number(b.outstanding),
+    }))
+    .reverse(); // newest first
 
   type RawEntry = {
     id: string;
@@ -103,6 +118,9 @@ export default async function CustomerLedgerPage({ params }: PageProps) {
         </p>
       </div>
 
+      <DebtorInvoices customerName={customer.name} rows={invoiceRows} />
+
+      <h3 className="text-lg font-semibold text-white mb-3">Ledger</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

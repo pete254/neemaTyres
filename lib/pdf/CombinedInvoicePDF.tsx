@@ -16,6 +16,9 @@ interface InvoiceGroup {
   invoiceNo: string;
   date: string;
   total: string;
+  /** Present only when balances are shown (debtor invoices). */
+  paid?: string;
+  due?: string;
   lines: Line[];
 }
 
@@ -39,6 +42,7 @@ export function CombinedInvoicePDF({
   customer,
   invoices,
   grandTotal,
+  totalDue,
   issuedOn,
   shop,
   logoSrc,
@@ -46,10 +50,16 @@ export function CombinedInvoicePDF({
   customer: Customer;
   invoices: InvoiceGroup[];
   grandTotal: string;
+  /** When set, the invoice shows amount paid and balance due. */
+  totalDue?: string;
   issuedOn: string;
   shop: ShopInfo;
   logoSrc?: string;
 }) {
+  const showBalance = totalDue !== undefined;
+  const single = invoices.length === 1;
+  const amountDue = totalDue ?? grandTotal;
+  const totalPaid = (Number(grandTotal) - Number(amountDue)).toFixed(2);
   const period =
     invoices.length > 0
       ? `${dateStr(invoices[0].date)} — ${dateStr(invoices[invoices.length - 1].date)}`
@@ -75,9 +85,18 @@ export function CombinedInvoicePDF({
           </View>
           <View>
             <Text style={base.docType}>Invoice</Text>
-            <Text style={base.docMeta}>Date: {dateStr(issuedOn)}</Text>
-            <Text style={base.docMeta}>Covers {invoices.length} invoice{invoices.length === 1 ? "" : "s"}</Text>
-            {period && <Text style={base.docMeta}>Period: {period}</Text>}
+            {single ? (
+              <>
+                <Text style={base.docMeta}>No: {invoices[0].invoiceNo}</Text>
+                <Text style={base.docMeta}>Date: {dateStr(invoices[0].date)}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={base.docMeta}>Date: {dateStr(issuedOn)}</Text>
+                <Text style={base.docMeta}>Covers {invoices.length} invoices</Text>
+                {period && <Text style={base.docMeta}>Period: {period}</Text>}
+              </>
+            )}
           </View>
         </View>
 
@@ -103,10 +122,12 @@ export function CombinedInvoicePDF({
 
         {invoices.map((inv) => (
           <View key={inv.id} wrap={false} style={{ marginBottom: 4 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: SUBTLE, paddingVertical: 4, paddingHorizontal: 4 }}>
-              <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: PURPLE }}>Invoice No: {inv.invoiceNo}</Text>
-              <Text style={{ fontSize: 8, color: GRAY }}>{dateStr(inv.date)}</Text>
-            </View>
+            {!single && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: SUBTLE, paddingVertical: 4, paddingHorizontal: 4 }}>
+                <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: PURPLE }}>Invoice No: {inv.invoiceNo}</Text>
+                <Text style={{ fontSize: 8, color: GRAY }}>{dateStr(inv.date)}</Text>
+              </View>
+            )}
             {inv.lines.map((line, i) => (
               <View key={line.id} style={base.tableRow}>
                 <Text style={[base.tableCellGray, { width: COL.num }]}>{i + 1}.</Text>
@@ -116,21 +137,37 @@ export function CombinedInvoicePDF({
                 <Text style={[base.tableCell, { width: COL.amount, textAlign: "right" }]}>{fmt(line.lineTotal)}</Text>
               </View>
             ))}
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingVertical: 4, paddingHorizontal: 4 }}>
-              <Text style={{ fontSize: 8, color: GRAY, marginRight: 8 }}>Subtotal</Text>
-              <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", width: COL.amount, textAlign: "right" }}>{fmt(inv.total)}</Text>
-            </View>
+            {!single && (
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingVertical: 4, paddingHorizontal: 4 }}>
+                <Text style={{ fontSize: 8, color: GRAY, marginRight: 8 }}>Subtotal</Text>
+                <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", width: COL.amount, textAlign: "right" }}>{fmt(inv.total)}</Text>
+              </View>
+            )}
           </View>
         ))}
 
         {/* Summary of invoices */}
-        {invoices.length > 1 && (
-          <View style={{ marginTop: 8, marginBottom: 6, alignSelf: "flex-end", width: "50%" }} wrap={false}>
+        {(!single || showBalance) && (
+          <View style={{ marginTop: 8, marginBottom: 6, alignSelf: "flex-end", width: showBalance ? "70%" : "50%" }} wrap={false}>
             <Text style={[base.sectionLabel, { marginBottom: 3 }]}>Summary</Text>
+            {showBalance && (
+              <View style={{ flexDirection: "row", paddingVertical: 2, borderBottomWidth: 0.5, borderBottomColor: "#E5E7EB" }}>
+                <Text style={{ fontSize: 7, color: GRAY, flex: 1 }}>Invoice</Text>
+                <Text style={{ fontSize: 7, color: GRAY, width: "22%", textAlign: "right" }}>Amount</Text>
+                <Text style={{ fontSize: 7, color: GRAY, width: "22%", textAlign: "right" }}>Paid</Text>
+                <Text style={{ fontSize: 7, color: GRAY, width: "22%", textAlign: "right" }}>Balance</Text>
+              </View>
+            )}
             {invoices.map((inv) => (
-              <View key={inv.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 2, borderBottomWidth: 0.5, borderBottomColor: "#E5E7EB" }}>
-                <Text style={{ fontSize: 8, color: GRAY }}>{inv.invoiceNo} · {dateStr(inv.date)}</Text>
-                <Text style={{ fontSize: 8 }}>{fmt(inv.total)}</Text>
+              <View key={inv.id} style={{ flexDirection: "row", paddingVertical: 2, borderBottomWidth: 0.5, borderBottomColor: "#E5E7EB" }}>
+                <Text style={{ fontSize: 8, color: GRAY, flex: 1 }}>{inv.invoiceNo} · {dateStr(inv.date)}</Text>
+                <Text style={{ fontSize: 8, width: "22%", textAlign: "right" }}>{fmt(inv.total)}</Text>
+                {showBalance && (
+                  <>
+                    <Text style={{ fontSize: 8, width: "22%", textAlign: "right", color: GRAY }}>{fmt(inv.paid ?? "0")}</Text>
+                    <Text style={{ fontSize: 8, width: "22%", textAlign: "right", fontFamily: "Helvetica-Bold" }}>{fmt(inv.due ?? "0")}</Text>
+                  </>
+                )}
               </View>
             ))}
           </View>
@@ -140,11 +177,23 @@ export function CombinedInvoicePDF({
         <View style={base.totalsRow} wrap={false}>
           <View style={{ maxWidth: "55%" }}>
             <Text style={[base.sectionLabel, { marginBottom: 3 }]}>Total in words</Text>
-            <Text style={base.totalWords}>{toWords(Number(grandTotal))}</Text>
+            <Text style={base.totalWords}>{toWords(Number(amountDue))}</Text>
           </View>
           <View>
-            <Text style={base.totalLabel}>Total (KES)</Text>
-            <Text style={base.totalAmount}>{fmt(grandTotal)}</Text>
+            {showBalance && (
+              <View style={{ marginBottom: 6 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 16 }}>
+                  <Text style={{ fontSize: 8, color: GRAY }}>Invoice total</Text>
+                  <Text style={{ fontSize: 8 }}>{fmt(grandTotal)}</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 16 }}>
+                  <Text style={{ fontSize: 8, color: GRAY }}>Less: paid</Text>
+                  <Text style={{ fontSize: 8 }}>{fmt(totalPaid)}</Text>
+                </View>
+              </View>
+            )}
+            <Text style={base.totalLabel}>{showBalance ? "Balance Due (KES)" : "Total (KES)"}</Text>
+            <Text style={base.totalAmount}>{fmt(amountDue)}</Text>
           </View>
         </View>
 

@@ -116,3 +116,73 @@ export async function getCustomerDebt(
     lines,
   };
 }
+
+export interface SaleBalance {
+  saleId: string;
+  invoiceNo: string | null;
+  date: Date;
+  total: Decimal;
+  /** Portion of the sale put on credit. */
+  debtAmount: Decimal;
+  /** Paid at the time of sale (cash / M-Pesa) plus collections applied FIFO. */
+  paid: Decimal;
+  outstanding: Decimal;
+  items: string;
+}
+
+/**
+ * Per-sale balances for a customer's credit sales. Debt collections aren't
+ * tied to a sale, so — as in getCustomerDebt — they are applied FIFO: opening
+ * balances first, then sales oldest to newest.
+ */
+export async function getCustomerSaleBalances(customerId: string) {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    include: {
+      openingBalanceEntries: { where: { kind: "DEBTOR" } },
+      sales: {
+        where: { payments: { some: { channel: "DEBT" } } },
+        include: {
+          payments: true,
+          lines: { include: { variant: { include: { brand: { select: { name: true } } } } } },
+        },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      },
+      debtCollections: true,
+    },
+  });
+  if (!customer) return null;
+
+  let remaining = customer.debtCollections.reduce(
+    (sum, dc) => sum.plus(dc.amount.toString()),
+    new Decimal(0)
+  );
+  for (const e of customer.openingBalanceEntries) {
+    const applied = Decimal.min(new Decimal(e.amount?.toString() ?? "0"), remaining);
+    remaining = remaining.minus(applied);
+  }
+
+  const sales: SaleBalance[] = customer.sales.map((sale) => {
+    const total = new Decimal(sale.totalAmount.toString());
+    const debtAmount = sale.payments
+      .filter((p) => p.channel === "DEBT")
+      .reduce((sum, p) => sum.plus(p.amount.toString()), new Decimal(0));
+    const applied = Decimal.min(debtAmount, remaining);
+    remaining = remaining.minus(applied);
+    const outstanding = debtAmount.minus(applied);
+    return {
+      saleId: sale.id,
+      invoiceNo: sale.invoiceNo,
+      date: sale.date,
+      total,
+      debtAmount,
+      paid: total.minus(outstanding),
+      outstanding,
+      items: sale.lines
+        .map((l) => `${l.qty}× ${l.variant.sizeCanonical} ${l.variant.brand.name}${l.variant.subLabel ? ` ${l.variant.subLabel}` : ""}`)
+        .join(", "),
+    };
+  });
+
+  return { customer: { id: customer.id, name: customer.name, phone: customer.phone }, sales };
+}

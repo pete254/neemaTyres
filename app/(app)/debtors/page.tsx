@@ -60,6 +60,14 @@ export default async function DebtorsPage() {
                     >
                       Collect
                     </Link>
+                    <a
+                      href={`/api/pdf/invoice/combined?customerId=${d.id}&unpaid=1`}
+                      target="_blank"
+                      title="One invoice covering every unpaid sale, with balance due"
+                      className="text-xs text-zinc-400 hover:text-white border border-[#2A2A2A] rounded px-2 py-1 transition-colors"
+                    >
+                      Invoice unpaid
+                    </a>
                     <Link
                       href={`/debtors/${d.id}`}
                       className="text-xs text-zinc-500 hover:text-[#EAB308] transition-colors"
