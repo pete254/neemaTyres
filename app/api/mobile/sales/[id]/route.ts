@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { ok } from "@/app/api/mobile/_serialize";
-import { deleteSale, postSale } from "@/lib/posting";
+import { deleteSale, replaceSale, InsufficientStockError } from "@/lib/posting";
 import { getSaleById } from "@/lib/queries/saleById";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import { logAction } from "@/lib/audit";
@@ -57,22 +57,29 @@ export async function PATCH(
     customerId = await upsertCustomerByName(walkinName, null, userId);
   }
 
-  await deleteSale(id);
-
-  const updated = await postSale({
-    customerId,
-    date: new Date(body.date + "T00:00:00Z"),
-    recordedById: userId,
-    lines: (body.lines as Array<{ variantId: string; qty: number; unitPrice: string }>).map((l) => ({
-      variantId: l.variantId,
-      qty: l.qty,
-      unitPrice: new Decimal(l.unitPrice),
-    })),
-    payments: (body.payments as Array<{ channel: string; amount: string }>).map((p) => ({
-      channel: p.channel as "CASH" | "MPESA" | "DEBT",
-      amount: new Decimal(p.amount),
-    })),
-  });
+  // Delete + re-post in one transaction: a refused edit leaves the original sale intact.
+  let updated;
+  try {
+    updated = await replaceSale(id, {
+      customerId,
+      date: new Date(body.date + "T00:00:00Z"),
+      recordedById: userId,
+      lines: (body.lines as Array<{ variantId: string; qty: number; unitPrice: string }>).map((l) => ({
+        variantId: l.variantId,
+        qty: l.qty,
+        unitPrice: new Decimal(l.unitPrice),
+      })),
+      payments: (body.payments as Array<{ channel: string; amount: string }>).map((p) => ({
+        channel: p.channel as "CASH" | "MPESA" | "DEBT",
+        amount: new Decimal(p.amount),
+      })),
+    });
+  } catch (err) {
+    if (err instanceof InsufficientStockError) {
+      return Response.json({ error: err.message }, { status: 409 });
+    }
+    return Response.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
+  }
 
   await logAction(userId, "UPDATE_SALE", "Sale", updated.id,
     `Sale edited via mobile — ${body.lines.length} line(s)`,

@@ -4,11 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import Decimal from "decimal.js";
-import { postSale, deleteSale } from "@/lib/posting";
+import { postSale, deleteSale, replaceSale, InsufficientStockError } from "@/lib/posting";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import { logAction } from "@/lib/audit";
 
-export async function createSale(formData: FormData) {
+/** Returned to the form instead of throwing, so the user sees why it was refused. */
+export type SaleActionResult = { error: string } | undefined;
+
+export async function createSale(formData: FormData): Promise<SaleActionResult> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
@@ -33,13 +36,19 @@ export async function createSale(formData: FormData) {
     amount: new Decimal(p.amount),
   }));
 
-  const sale = await postSale({
-    customerId: customerId || undefined,
-    date,
-    recordedById: session.user.id,
-    lines,
-    payments,
-  });
+  let sale;
+  try {
+    sale = await postSale({
+      customerId: customerId || undefined,
+      date,
+      recordedById: session.user.id,
+      lines,
+      payments,
+    });
+  } catch (err) {
+    if (err instanceof InsufficientStockError) return { error: err.message };
+    throw err;
+  }
 
   await logAction(session.user.id, "CREATE_SALE", "Sale", sale.id,
     `Sale of ${lines.length} line(s), total KES ${sale.totalAmount}`,
@@ -51,7 +60,7 @@ export async function createSale(formData: FormData) {
   redirect("/sales/new?success=1");
 }
 
-export async function updateSale(saleId: string, formData: FormData) {
+export async function updateSale(saleId: string, formData: FormData): Promise<SaleActionResult> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
@@ -76,14 +85,20 @@ export async function updateSale(saleId: string, formData: FormData) {
     amount: new Decimal(p.amount),
   }));
 
-  await deleteSale(saleId);
-  const updated = await postSale({
-    customerId: customerId || undefined,
-    date,
-    recordedById: session.user.id,
-    lines,
-    payments,
-  });
+  // Delete + re-post in one transaction: a refused edit leaves the original sale intact.
+  let updated;
+  try {
+    updated = await replaceSale(saleId, {
+      customerId: customerId || undefined,
+      date,
+      recordedById: session.user.id,
+      lines,
+      payments,
+    });
+  } catch (err) {
+    if (err instanceof InsufficientStockError) return { error: err.message };
+    throw err;
+  }
 
   await logAction(session.user.id, "UPDATE_SALE", "Sale", updated.id,
     `Sale updated — ${lines.length} line(s), total KES ${updated.totalAmount}`,

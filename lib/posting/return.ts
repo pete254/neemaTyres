@@ -3,10 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { computeWac } from "./wac";
 import { appendLedgerEntry } from "./ledger";
 import { variantLabel } from "./label";
+import { lockVariants } from "./lock";
 import type { PostReturnInput } from "./types";
 
 export async function postReturn(input: PostReturnInput) {
   return prisma.$transaction(async (tx) => {
+    await lockVariants(tx, [input.variantId]);
+
     const ret = await tx.return.create({
       data: {
         type: input.type,

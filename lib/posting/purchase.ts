@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { computeWac } from "./wac";
 import { appendLedgerEntry } from "./ledger";
+import { lockVariants } from "./lock";
 import { variantLabel, linesSummary } from "./label";
 import type { PostPurchaseInput } from "./types";
 
@@ -11,6 +12,7 @@ export async function deletePurchase(purchaseId: string) {
       where: { id: purchaseId },
       include: { lines: true },
     });
+    await lockVariants(tx, purchase.lines.map((l) => l.variantId));
 
     let totalCost = new Decimal(0);
     const summaryItems: { qty: number; label: string }[] = [];
@@ -69,6 +71,8 @@ export async function deletePurchase(purchaseId: string) {
 
 export async function postPurchase(input: PostPurchaseInput) {
   return prisma.$transaction(async (tx) => {
+    await lockVariants(tx, input.lines.map((l) => l.variantId));
+
     const purchase = await tx.purchase.create({
       data: {
         supplierId: input.supplierId ?? null,

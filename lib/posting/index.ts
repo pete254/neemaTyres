@@ -1,5 +1,5 @@
 export { postPurchase, deletePurchase } from "./purchase";
-export { postSale, deleteSale } from "./sale";
+export { postSale, deleteSale, replaceSale, InsufficientStockError } from "./sale";
 export { postDebtCollection, getCustomerReceivable } from "./debtCollection";
 export {
   postSupplierPayment,

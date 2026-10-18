@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { ok } from "@/app/api/mobile/_serialize";
 import { getSalesBetween } from "@/lib/queries";
-import { postSale } from "@/lib/posting";
+import { postSale, InsufficientStockError } from "@/lib/posting";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import type { PaymentChannel } from "@/lib/posting/types";
 import { logAction } from "@/lib/audit";
@@ -76,6 +76,9 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ success: true, saleId: result.id });
   } catch (err) {
+    if (err instanceof InsufficientStockError) {
+      return Response.json({ error: err.message }, { status: 409 });
+    }
     console.error("[mobile/sales POST]", err);
     return Response.json(
       { error: err instanceof Error ? err.message : "Internal server error" },

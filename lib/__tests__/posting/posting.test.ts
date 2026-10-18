@@ -11,16 +11,17 @@ import Decimal from "decimal.js";
 // Each test seeds the mock's return values to match the scenario.
 
 const mockTx = {
+  $queryRaw: vi.fn(),
   purchase: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
   purchaseLine: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
   productVariant: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
-  sale: { create: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn() },
-  saleLine: { create: vi.fn() },
-  payment: { create: vi.fn(), aggregate: vi.fn() },
+  sale: { create: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), delete: vi.fn() },
+  saleLine: { create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
+  payment: { create: vi.fn(), aggregate: vi.fn(), deleteMany: vi.fn() },
   debtCollection: { create: vi.fn(), aggregate: vi.fn() },
   supplierPayment: { create: vi.fn() },
   ledgerEntry: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), aggregate: vi.fn() },
-  exceptionFlag: { create: vi.fn() },
+  exceptionFlag: { create: vi.fn(), deleteMany: vi.fn() },
   return: { create: vi.fn() },
 };
 
@@ -201,19 +202,61 @@ describe("postSale — split payment and receivable", () => {
 describe("postSale — negative stock and flags", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("allows sale that drives stock negative and creates NEGATIVE_STOCK ExceptionFlag", async () => {
+  it("refuses a sale that would drive stock negative, and writes nothing to stock", async () => {
+    const { postSale, InsufficientStockError } = await import("@/lib/posting/sale");
+
+    mockTx.sale.findFirst.mockResolvedValue(null);
+    mockTx.sale.create.mockResolvedValue({ id: "sale-3" });
+    // Only 1 in stock, selling 3
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(1, 15000));
+
+    const attempt = postSale({
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-1", qty: 3, unitPrice: dec(18000) }],
+      payments: [{ channel: "CASH", amount: dec(54000) }],
+    });
+
+    await expect(attempt).rejects.toBeInstanceOf(InsufficientStockError);
+    await expect(attempt).rejects.toThrow(/1 in stock, trying to sell 3/);
+    expect(mockTx.productVariant.update).not.toHaveBeenCalled();
+    expect(mockTx.saleLine.create).not.toHaveBeenCalled();
+  });
+
+  it("allows selling exactly what is in stock (to zero)", async () => {
     const { postSale } = await import("@/lib/posting/sale");
 
-    mockTx.sale.create.mockResolvedValue({ id: "sale-3" });
-    // Only 1 in stock, selling 3 → goes to -2
-    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(1, 15000));
+    mockTx.sale.findFirst.mockResolvedValue(null);
+    mockTx.sale.create.mockResolvedValue({ id: "sale-3b" });
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(2, 15000));
+    mockTx.saleLine.create.mockResolvedValue({});
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.payment.create.mockResolvedValue({});
+    mockTx.sale.findUniqueOrThrow.mockResolvedValue({ id: "sale-3b", lines: [], payments: [] });
+
+    await postSale({
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-1", qty: 2, unitPrice: dec(18000) }],
+      payments: [{ channel: "CASH", amount: dec(36000) }],
+    });
+
+    expect(mockTx.productVariant.update.mock.calls[0][0].data.qtyOnHand).toBe(0);
+    expect(mockTx.exceptionFlag.create).not.toHaveBeenCalled();
+  });
+
+  it("still allows off-inventory items to go negative, with a NEGATIVE_STOCK flag", async () => {
+    const { postSale } = await import("@/lib/posting/sale");
+
+    mockTx.sale.findFirst.mockResolvedValue(null);
+    mockTx.sale.create.mockResolvedValue({ id: "sale-3c" });
+    mockTx.productVariant.findUnique.mockResolvedValue({ ...makeVariant(1, 15000), isOffInventory: true });
     mockTx.saleLine.create.mockResolvedValue({});
     mockTx.productVariant.update.mockResolvedValue({});
     mockTx.payment.create.mockResolvedValue({});
     mockTx.exceptionFlag.create.mockResolvedValue({});
-    mockTx.sale.findUniqueOrThrow.mockResolvedValue({ id: "sale-3", lines: [], payments: [] });
+    mockTx.sale.findUniqueOrThrow.mockResolvedValue({ id: "sale-3c", lines: [], payments: [] });
 
-    // Should not throw
     await postSale({
       date: new Date(),
       recordedById: "user-1",
@@ -221,12 +264,8 @@ describe("postSale — negative stock and flags", () => {
       payments: [{ channel: "CASH", amount: dec(54000) }],
     });
 
-    const updateCall = mockTx.productVariant.update.mock.calls[0][0];
-    expect(updateCall.data.qtyOnHand).toBe(-2);
-
-    expect(mockTx.exceptionFlag.create).toHaveBeenCalledOnce();
-    const flagData = mockTx.exceptionFlag.create.mock.calls[0][0].data;
-    expect(flagData.flagType).toBe("NEGATIVE_STOCK");
+    expect(mockTx.productVariant.update.mock.calls[0][0].data.qtyOnHand).toBe(-2);
+    expect(mockTx.exceptionFlag.create.mock.calls[0][0].data.flagType).toBe("NEGATIVE_STOCK");
   });
 
   it("flags PRICE_ANOMALY when unitPrice > 2× WAC", async () => {
@@ -251,6 +290,95 @@ describe("postSale — negative stock and flags", () => {
     expect(mockTx.exceptionFlag.create).toHaveBeenCalledOnce();
     const flagData = mockTx.exceptionFlag.create.mock.calls[0][0].data;
     expect(flagData.flagType).toBe("PRICE_ANOMALY");
+  });
+});
+
+describe("posting — variant row locks", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("locks each sold variant once, in sorted order, before reading stock", async () => {
+    const { postSale } = await import("@/lib/posting/sale");
+
+    mockTx.sale.create.mockResolvedValue({ id: "sale-lock" });
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(10, 15000));
+    mockTx.saleLine.create.mockResolvedValue({});
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.payment.create.mockResolvedValue({});
+    mockTx.sale.findUniqueOrThrow.mockResolvedValue({ id: "sale-lock", lines: [], payments: [] });
+
+    await postSale({
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [
+        { variantId: "var-b", qty: 1, unitPrice: dec(10000) },
+        { variantId: "var-a", qty: 1, unitPrice: dec(10000) },
+        { variantId: "var-b", qty: 1, unitPrice: dec(10000) },
+      ],
+      payments: [{ channel: "CASH", amount: dec(30000) }],
+    });
+
+    // Tagged-template calls: [strings, id] — one lock per distinct variant, sorted.
+    const lockedIds = mockTx.$queryRaw.mock.calls.map((c) => c[1]);
+    expect(lockedIds).toEqual(["var-a", "var-b"]);
+    expect(mockTx.$queryRaw.mock.calls[0][0].join("?")).toContain("FOR UPDATE");
+    expect(mockTx.$queryRaw.mock.invocationCallOrder[1]).toBeLessThan(
+      mockTx.productVariant.findUnique.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("locks purchased variants before computing WAC", async () => {
+    const { postPurchase } = await import("@/lib/posting/purchase");
+
+    mockTx.purchase.create.mockResolvedValue({ id: "purch-lock" });
+    mockTx.productVariant.findUniqueOrThrow.mockResolvedValue(makeVariant(3, 22000));
+    mockTx.purchaseLine.create.mockResolvedValue({});
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.purchase.findUniqueOrThrow.mockResolvedValue({ id: "purch-lock", lines: [] });
+
+    await postPurchase({
+      terms: "CASH",
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-1", qty: 2, unitCost: dec(20000) }],
+    });
+
+    expect(mockTx.$queryRaw).toHaveBeenCalledOnce();
+    expect(mockTx.$queryRaw.mock.calls[0][1]).toBe("var-1");
+  });
+});
+
+describe("replaceSale — edit is all-or-nothing", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("deletes and re-posts inside ONE transaction, so a refused edit rolls back the delete", async () => {
+    const { replaceSale, InsufficientStockError } = await import("@/lib/posting/sale");
+    const { prisma } = await import("@/lib/prisma");
+
+    mockTx.saleLine.findMany.mockResolvedValue([{ variantId: "var-old" }]);
+    mockTx.sale.findUniqueOrThrow.mockResolvedValueOnce({ id: "old-sale", lines: [{ variantId: "var-old", qty: 1 }] });
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.exceptionFlag.deleteMany.mockResolvedValue({});
+    mockTx.payment.deleteMany.mockResolvedValue({});
+    mockTx.saleLine.deleteMany.mockResolvedValue({});
+    mockTx.sale.delete.mockResolvedValue({});
+    mockTx.sale.findFirst.mockResolvedValue(null);
+    mockTx.sale.create.mockResolvedValue({ id: "new-sale" });
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(0, 15000)); // new tyre has none
+
+    await expect(
+      replaceSale("old-sale", {
+        date: new Date(),
+        recordedById: "user-1",
+        lines: [{ variantId: "var-new", qty: 1, unitPrice: dec(18000) }],
+        payments: [{ channel: "CASH", amount: dec(18000) }],
+      })
+    ).rejects.toBeInstanceOf(InsufficientStockError);
+
+    // One transaction wraps both steps — the throw makes Postgres undo the delete.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(mockTx.sale.delete).toHaveBeenCalledOnce();
+    // Old and new tyres locked together, sorted, before anything else.
+    expect(mockTx.$queryRaw.mock.calls.slice(0, 2).map((c) => c[1])).toEqual(["var-new", "var-old"]);
   });
 });
 
