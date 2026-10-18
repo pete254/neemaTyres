@@ -37,7 +37,10 @@ export async function deletePurchase(purchaseId: string) {
       const restoredQty = variant.qtyOnHand - line.qty;
       let restoredWac: Decimal;
       if (restoredQty <= 0) {
-        restoredWac = new Decimal(0);
+        // Nothing (or less than nothing) left to average over: keep the last
+        // known cost. Zeroing it here made any sale posted afterwards — e.g.
+        // a sale edit, or the re-post half of a purchase edit — cost 0.
+        restoredWac = new Decimal(variant.wacCost.toString());
       } else {
         restoredWac = new Decimal(variant.qtyOnHand)
           .mul(new Decimal(variant.wacCost.toString()))

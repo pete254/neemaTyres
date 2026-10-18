@@ -100,4 +100,16 @@ describe("computeWac — pure unit tests", () => {
     expect(after.qty).toBe(-10);
     expect(d2(after.wac)).toBe("18000.00");
   });
+
+  /**
+   * 315/80R22.5 Onyx STEERING (sale 2026-599): sold 2 before the purchase was
+   * entered (-2), then the purchase of 2 @ 25,000 brings stock to exactly 0.
+   * Those units were already sold, so the cost basis is the purchase cost —
+   * previously the newQty === 0 shortcut kept the stale WAC (0).
+   */
+  it("purchase that exactly covers an oversold quantity sets WAC to the received cost", () => {
+    const after = computeWac({ qty: -2, wac: new Decimal(0) }, 2, new Decimal(25000));
+    expect(after.qty).toBe(0);
+    expect(d2(after.wac)).toBe("25000.00");
+  });
 });

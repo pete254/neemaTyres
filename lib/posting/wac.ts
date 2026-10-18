@@ -8,7 +8,8 @@ export interface WacState {
 /**
  * Recomputes WAC after receiving incomingQty units at incomingCost each.
  *
- * If newQty === 0 the wac is left unchanged (preserve last known cost).
+ * If newQty === 0 the wac is left unchanged (preserve last known cost) —
+ * except when stock was at or below zero, see the negative-stock guard.
  *
  * FREE receipts (incomingCost = 0) add quantity but leave the WAC unchanged:
  * free bonus stock must not deflate the cost basis of paid stock. (Business rule
@@ -26,17 +27,21 @@ export function computeWac(
   incomingQty: number,
   incomingCost: Decimal
 ): WacState {
+  if (incomingQty === 0) return current;
   const newQty = current.qty + incomingQty;
-  if (newQty === 0) return { qty: 0, wac: current.wac };
 
   // FREE receipt: quantity only, cost unchanged.
   if (incomingCost.lte(0)) {
     return { qty: newQty, wac: current.wac };
   }
 
+  // Negative-stock guard (also when the receipt lands exactly on zero: those
+  // units were already sold, and the purchase is what they cost).
   if (current.qty <= 0) {
     return { qty: newQty, wac: incomingCost };
   }
+
+  if (newQty === 0) return { qty: 0, wac: current.wac };
 
   const newWac = new Decimal(current.qty)
     .mul(current.wac)

@@ -12,8 +12,8 @@ import Decimal from "decimal.js";
 
 const mockTx = {
   $queryRaw: vi.fn(),
-  purchase: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
-  purchaseLine: { create: vi.fn(), findUniqueOrThrow: vi.fn() },
+  purchase: { create: vi.fn(), findUniqueOrThrow: vi.fn(), delete: vi.fn() },
+  purchaseLine: { create: vi.fn(), findUniqueOrThrow: vi.fn(), deleteMany: vi.fn() },
   productVariant: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
   sale: { create: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), delete: vi.fn() },
   saleLine: { create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
@@ -126,6 +126,30 @@ describe("postPurchase — WAC and ledger", () => {
     });
 
     expect(mockTx.ledgerEntry.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("deletePurchase — WAC when the purchased units are already sold", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("keeps the last known WAC instead of zeroing it", async () => {
+    const { deletePurchase } = await import("@/lib/posting/purchase");
+
+    mockTx.purchase.findUniqueOrThrow.mockResolvedValue({
+      id: "purch-del", terms: "CASH", supplierId: null, date: new Date(),
+      lines: [{ variantId: "var-1", qty: 2, unitCost: { toString: () => "25000" }, lineTotal: { toString: () => "50000" } }],
+    });
+    // Both units already sold: on hand 0, WAC 25,000
+    mockTx.productVariant.findUniqueOrThrow.mockResolvedValue(makeVariant(0, 25000));
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.purchaseLine.deleteMany.mockResolvedValue({});
+    mockTx.purchase.delete.mockResolvedValue({});
+
+    await deletePurchase("purch-del");
+
+    const data = mockTx.productVariant.update.mock.calls[0][0].data;
+    expect(data.qtyOnHand).toBe(-2);
+    expect(data.wacCost.toFixed(2)).toBe("25000.00");
   });
 });
 
