@@ -101,10 +101,7 @@ async function postSaleInTx(tx: Tx, input: PostSaleInput) {
     // Fetch or auto-create variant
     let variant = await tx.productVariant.findUnique({
       where: { id: line.variantId },
-      select: {
-        id: true, qtyOnHand: true, wacCost: true, referenceSellPrice: true, isOffInventory: true,
-        sizeCanonical: true, subLabel: true, position: true, brand: { select: { name: true } },
-      },
+      select: { id: true, qtyOnHand: true, wacCost: true, referenceSellPrice: true, isOffInventory: true },
     });
 
     if (!variant) {
