@@ -2,25 +2,9 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { lockVariants } from "./lock";
-import { variantLabel } from "./label";
 import type { PostSaleInput } from "./types";
 
 type Tx = Prisma.TransactionClient;
-
-/** Thrown when a sale would take a tyre's stock below zero. */
-export class InsufficientStockError extends Error {
-  constructor(
-    public readonly variantLabel: string,
-    public readonly inStock: number,
-    public readonly requested: number
-  ) {
-    super(
-      `Not enough stock for ${variantLabel}: ${inStock} in stock, trying to sell ${requested}. ` +
-        `Record the purchase first.`
-    );
-    this.name = "InsufficientStockError";
-  }
-}
 
 async function deleteSaleInTx(tx: Tx, saleId: string) {
   const sale = await tx.sale.findUniqueOrThrow({
@@ -71,8 +55,8 @@ export async function postSale(input: PostSaleInput) {
 
 /**
  * Edits a sale: removes the old one (restoring its stock) and posts the new
- * version in ONE transaction. If the new version is rejected — e.g. not enough
- * stock — the original sale is left exactly as it was.
+ * version in ONE transaction. If posting the new version fails for any reason,
+ * the original sale is left exactly as it was.
  */
 export async function replaceSale(oldSaleId: string, input: PostSaleInput) {
   validateSaleInput(input);
@@ -127,23 +111,15 @@ async function postSaleInTx(tx: Tx, input: PostSaleInput) {
       // Off-inventory: auto-create at qty 0
       variant = await tx.productVariant.findUniqueOrThrow({
         where: { id: line.variantId },
-        select: {
-          id: true, qtyOnHand: true, wacCost: true, referenceSellPrice: true, isOffInventory: true,
-          sizeCanonical: true, subLabel: true, position: true, brand: { select: { name: true } },
-        },
+        select: { id: true, qtyOnHand: true, wacCost: true, referenceSellPrice: true, isOffInventory: true },
       });
     }
 
     const unitCostAtSale = new Decimal(variant.wacCost.toString());
     const newQty = variant.qtyOnHand - line.qty;
 
-    // Stock may not go below zero. The row is locked, so this read is current.
-    // Off-inventory items (sourced to order) are exempt and only flagged.
-    if (newQty < 0 && !variant.isOffInventory) {
-      throw new InsufficientStockError(variantLabel(variant), variant.qtyOnHand, line.qty);
-    }
-
-    // Flag: negative stock (off-inventory only)
+    // Selling ahead of the purchase being recorded is allowed (business rule);
+    // stock goes negative and the line is flagged for follow-up.
     if (newQty < 0) {
       flags.push("NEGATIVE_STOCK");
       await tx.exceptionFlag.create({

@@ -226,25 +226,29 @@ describe("postSale — split payment and receivable", () => {
 describe("postSale — negative stock and flags", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("refuses a sale that would drive stock negative, and writes nothing to stock", async () => {
-    const { postSale, InsufficientStockError } = await import("@/lib/posting/sale");
+  it("allows a sale that drives stock negative and creates a NEGATIVE_STOCK flag", async () => {
+    const { postSale } = await import("@/lib/posting/sale");
 
     mockTx.sale.findFirst.mockResolvedValue(null);
     mockTx.sale.create.mockResolvedValue({ id: "sale-3" });
-    // Only 1 in stock, selling 3
+    // Only 1 in stock, selling 3 → goes to -2 (sold ahead of the purchase being recorded)
     mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(1, 15000));
+    mockTx.saleLine.create.mockResolvedValue({});
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.payment.create.mockResolvedValue({});
+    mockTx.exceptionFlag.create.mockResolvedValue({});
+    mockTx.sale.findUniqueOrThrow.mockResolvedValue({ id: "sale-3", lines: [], payments: [] });
 
-    const attempt = postSale({
+    await postSale({
       date: new Date(),
       recordedById: "user-1",
       lines: [{ variantId: "var-1", qty: 3, unitPrice: dec(18000) }],
       payments: [{ channel: "CASH", amount: dec(54000) }],
     });
 
-    await expect(attempt).rejects.toBeInstanceOf(InsufficientStockError);
-    await expect(attempt).rejects.toThrow(/1 in stock, trying to sell 3/);
-    expect(mockTx.productVariant.update).not.toHaveBeenCalled();
-    expect(mockTx.saleLine.create).not.toHaveBeenCalled();
+    expect(mockTx.productVariant.update.mock.calls[0][0].data.qtyOnHand).toBe(-2);
+    expect(mockTx.exceptionFlag.create).toHaveBeenCalledOnce();
+    expect(mockTx.exceptionFlag.create.mock.calls[0][0].data.flagType).toBe("NEGATIVE_STOCK");
   });
 
   it("allows selling exactly what is in stock (to zero)", async () => {
@@ -267,29 +271,6 @@ describe("postSale — negative stock and flags", () => {
 
     expect(mockTx.productVariant.update.mock.calls[0][0].data.qtyOnHand).toBe(0);
     expect(mockTx.exceptionFlag.create).not.toHaveBeenCalled();
-  });
-
-  it("still allows off-inventory items to go negative, with a NEGATIVE_STOCK flag", async () => {
-    const { postSale } = await import("@/lib/posting/sale");
-
-    mockTx.sale.findFirst.mockResolvedValue(null);
-    mockTx.sale.create.mockResolvedValue({ id: "sale-3c" });
-    mockTx.productVariant.findUnique.mockResolvedValue({ ...makeVariant(1, 15000), isOffInventory: true });
-    mockTx.saleLine.create.mockResolvedValue({});
-    mockTx.productVariant.update.mockResolvedValue({});
-    mockTx.payment.create.mockResolvedValue({});
-    mockTx.exceptionFlag.create.mockResolvedValue({});
-    mockTx.sale.findUniqueOrThrow.mockResolvedValue({ id: "sale-3c", lines: [], payments: [] });
-
-    await postSale({
-      date: new Date(),
-      recordedById: "user-1",
-      lines: [{ variantId: "var-1", qty: 3, unitPrice: dec(18000) }],
-      payments: [{ channel: "CASH", amount: dec(54000) }],
-    });
-
-    expect(mockTx.productVariant.update.mock.calls[0][0].data.qtyOnHand).toBe(-2);
-    expect(mockTx.exceptionFlag.create.mock.calls[0][0].data.flagType).toBe("NEGATIVE_STOCK");
   });
 
   it("flags PRICE_ANOMALY when unitPrice > 2× WAC", async () => {
@@ -374,8 +355,8 @@ describe("posting — variant row locks", () => {
 describe("replaceSale — edit is all-or-nothing", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("deletes and re-posts inside ONE transaction, so a refused edit rolls back the delete", async () => {
-    const { replaceSale, InsufficientStockError } = await import("@/lib/posting/sale");
+  it("deletes and re-posts inside ONE transaction, so a failed edit rolls back the delete", async () => {
+    const { replaceSale } = await import("@/lib/posting/sale");
     const { prisma } = await import("@/lib/prisma");
 
     mockTx.saleLine.findMany.mockResolvedValue([{ variantId: "var-old" }]);
@@ -387,7 +368,8 @@ describe("replaceSale — edit is all-or-nothing", () => {
     mockTx.sale.delete.mockResolvedValue({});
     mockTx.sale.findFirst.mockResolvedValue(null);
     mockTx.sale.create.mockResolvedValue({ id: "new-sale" });
-    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(0, 15000)); // new tyre has none
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(5, 15000));
+    mockTx.saleLine.create.mockRejectedValue(new Error("db write failed")); // re-post fails midway
 
     await expect(
       replaceSale("old-sale", {
@@ -396,7 +378,7 @@ describe("replaceSale — edit is all-or-nothing", () => {
         lines: [{ variantId: "var-new", qty: 1, unitPrice: dec(18000) }],
         payments: [{ channel: "CASH", amount: dec(18000) }],
       })
-    ).rejects.toBeInstanceOf(InsufficientStockError);
+    ).rejects.toThrow("db write failed");
 
     // One transaction wraps both steps — the throw makes Postgres undo the delete.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);

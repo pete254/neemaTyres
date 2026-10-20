@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createSale, type SaleActionResult } from "@/lib/actions/sale";
+import { createSale } from "@/lib/actions/sale";
 import CustomerPicker, { type CustomerSelection } from "./CustomerPicker";
 
 export interface SaleFormInitialData {
@@ -69,7 +69,7 @@ export default function SaleForm({
   variants: Variant[];
   customers: Customer[];
   initialData?: SaleFormInitialData;
-  submitAction?: (fd: FormData) => Promise<SaleActionResult>;
+  submitAction?: (fd: FormData) => Promise<void>;
   submitLabel?: string;
 }) {
   const [lines, setLines] = useState<SaleLine[]>(
@@ -89,7 +89,6 @@ export default function SaleForm({
   };
   const [customer, setCustomer] = useState<CustomerSelection>(initialData?.customer ?? null);
   const [isPending, startTransition] = useTransition();
-  const [serverError, setServerError] = useState<string | null>(null);
 
   // Distinct buckets: always include buckets from existing lines (edit mode)
   const editBuckets = new Set(initialData?.lines.map((l) => l.bucket) ?? []);
@@ -152,10 +151,8 @@ export default function SaleForm({
       JSON.stringify(lines.map(({ bucket: _b, ...rest }) => rest))
     );
     fd.append("payments", JSON.stringify(payments));
-    setServerError(null);
     startTransition(async () => {
-      const res = await (submitAction ?? createSale)(fd);
-      if (res?.error) setServerError(res.error);
+      await (submitAction ?? createSale)(fd);
     });
   };
 
@@ -509,12 +506,6 @@ export default function SaleForm({
       {anyOverStock && (
         <p className="text-sm text-red-400">
           One or more lines exceed available stock. Adjust quantities before saving.
-        </p>
-      )}
-
-      {serverError && (
-        <p className="text-sm text-red-400 border border-red-800 bg-red-950/30 rounded px-3 py-2">
-          {serverError}
         </p>
       )}
 

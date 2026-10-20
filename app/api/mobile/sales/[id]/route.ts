@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { ok } from "@/app/api/mobile/_serialize";
-import { deleteSale, replaceSale, InsufficientStockError } from "@/lib/posting";
+import { deleteSale, replaceSale } from "@/lib/posting";
 import { getSaleById } from "@/lib/queries/saleById";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import { logAction } from "@/lib/audit";
@@ -57,7 +57,7 @@ export async function PATCH(
     customerId = await upsertCustomerByName(walkinName, null, userId);
   }
 
-  // Delete + re-post in one transaction: a refused edit leaves the original sale intact.
+  // Delete + re-post in one transaction: a failed edit leaves the original sale intact.
   let updated;
   try {
     updated = await replaceSale(id, {
@@ -75,9 +75,6 @@ export async function PATCH(
       })),
     });
   } catch (err) {
-    if (err instanceof InsufficientStockError) {
-      return Response.json({ error: err.message }, { status: 409 });
-    }
     return Response.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
   }
 
