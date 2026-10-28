@@ -6,6 +6,7 @@ import { getPurchasesBetween } from "@/lib/queries";
 import { postPurchase } from "@/lib/posting";
 import type { PurchaseTerms } from "@/lib/posting/types";
 import { logAction } from "@/lib/audit";
+import { purchaseSnapshot, describePurchaseCreated } from "@/lib/auditDetail";
 
 export const runtime = "nodejs";
 
@@ -55,9 +56,9 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    await logAction(userId, "CREATE_PURCHASE", "Purchase", result.id,
-      `Purchase of ${body.lines.length} line(s), terms ${body.terms}`,
-      { terms: body.terms, lineCount: body.lines.length, source: "mobile" });
+    const snap = await purchaseSnapshot(result.id);
+    await logAction(userId, "CREATE_PURCHASE", "Purchase", result.id, describePurchaseCreated(snap),
+      { purchase: snap, source: "mobile" });
 
     return Response.json({ success: true, purchaseId: result.id });
   } catch (err) {

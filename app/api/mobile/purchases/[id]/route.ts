@@ -3,6 +3,7 @@ import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { ok } from "@/app/api/mobile/_serialize";
 import { postPurchase, deletePurchase } from "@/lib/posting";
 import { logAction } from "@/lib/audit";
+import { purchaseSnapshot, describePurchaseEdited, describePurchaseDeleted } from "@/lib/auditDetail";
 import { prisma } from "@/lib/prisma";
 import Decimal from "decimal.js";
 import type { PurchaseTerms } from "@/lib/posting/types";
@@ -50,6 +51,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
+  const before = await purchaseSnapshot(id);
   await deletePurchase(id);
 
   const updated = await postPurchase({
@@ -64,9 +66,9 @@ export async function PATCH(
     })),
   });
 
-  await logAction(userId, "UPDATE_PURCHASE", "Purchase", updated.id,
-    `Purchase edited via mobile — ${body.lines.length} line(s)`,
-    { previousPurchaseId: id, source: "mobile" });
+  const after = await purchaseSnapshot(updated.id);
+  await logAction(userId, "UPDATE_PURCHASE", "Purchase", updated.id, describePurchaseEdited(before, after),
+    { previousPurchaseId: id, before, after, source: "mobile" });
 
   return ok({ id: updated.id });
 }
@@ -80,8 +82,10 @@ export async function DELETE(
 
   const { id } = await params;
   try {
+    const snap = await purchaseSnapshot(id);
     await deletePurchase(id);
-    await logAction(userId, "DELETE_PURCHASE", "Purchase", id, `Purchase deleted via mobile`, { source: "mobile" });
+    await logAction(userId, "DELETE_PURCHASE", "Purchase", id, describePurchaseDeleted(snap),
+      { purchase: snap, source: "mobile" });
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });

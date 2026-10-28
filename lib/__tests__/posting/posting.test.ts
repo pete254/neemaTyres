@@ -359,8 +359,10 @@ describe("replaceSale — edit is all-or-nothing", () => {
     const { replaceSale } = await import("@/lib/posting/sale");
     const { prisma } = await import("@/lib/prisma");
 
-    mockTx.saleLine.findMany.mockResolvedValue([{ variantId: "var-old" }]);
-    mockTx.sale.findUniqueOrThrow.mockResolvedValueOnce({ id: "old-sale", lines: [{ variantId: "var-old", qty: 1 }] });
+    mockTx.saleLine.findMany.mockResolvedValue([{ variantId: "var-old", qty: 1, unitCostAtSale: { toString: () => "15000" } }]);
+    mockTx.sale.findUniqueOrThrow
+      .mockResolvedValueOnce({ invoiceNo: "2026-007" })
+      .mockResolvedValueOnce({ id: "old-sale", lines: [{ variantId: "var-old", qty: 1 }] });
     mockTx.productVariant.update.mockResolvedValue({});
     mockTx.exceptionFlag.deleteMany.mockResolvedValue({});
     mockTx.payment.deleteMany.mockResolvedValue({});
@@ -385,6 +387,94 @@ describe("replaceSale — edit is all-or-nothing", () => {
     expect(mockTx.sale.delete).toHaveBeenCalledOnce();
     // Old and new tyres locked together, sorted, before anything else.
     expect(mockTx.$queryRaw.mock.calls.slice(0, 2).map((c) => c[1])).toEqual(["var-new", "var-old"]);
+  });
+});
+
+describe("replaceSale — keeps original cost and invoice number", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  function seedReplace(oldLines: Array<{ variantId: string; qty: number; unitCostAtSale: number }>) {
+    mockTx.saleLine.findMany.mockResolvedValue(
+      oldLines.map((l) => ({ ...l, unitCostAtSale: { toString: () => String(l.unitCostAtSale) } }))
+    );
+    mockTx.sale.findUniqueOrThrow
+      .mockResolvedValueOnce({ invoiceNo: "2026-007" })
+      .mockResolvedValueOnce({ id: "old-sale", lines: oldLines })
+      .mockResolvedValueOnce({ id: "new-sale", lines: [], payments: [] });
+    mockTx.productVariant.update.mockResolvedValue({});
+    mockTx.exceptionFlag.deleteMany.mockResolvedValue({});
+    mockTx.payment.deleteMany.mockResolvedValue({});
+    mockTx.saleLine.deleteMany.mockResolvedValue({});
+    mockTx.sale.delete.mockResolvedValue({});
+    mockTx.sale.findFirst.mockResolvedValue(null);
+    mockTx.sale.create.mockResolvedValue({ id: "new-sale" });
+    mockTx.saleLine.create.mockResolvedValue({});
+    mockTx.payment.create.mockResolvedValue({});
+  }
+
+  it("re-posts tyres already on the sale at their original cost, not current WAC", async () => {
+    const { replaceSale } = await import("@/lib/posting/sale");
+    seedReplace([{ variantId: "var-1", qty: 2, unitCostAtSale: 15000 }]);
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(10, 21000)); // WAC moved since
+
+    await replaceSale("old-sale", {
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-1", qty: 3, unitPrice: dec(20000) }],
+      payments: [{ channel: "CASH", amount: dec(60000) }],
+    });
+
+    expect(mockTx.saleLine.create.mock.calls[0][0].data.unitCostAtSale.toString()).toBe("15000");
+  });
+
+  it("costs tyres added by the edit at current WAC", async () => {
+    const { replaceSale } = await import("@/lib/posting/sale");
+    seedReplace([{ variantId: "var-old", qty: 1, unitCostAtSale: 15000 }]);
+    mockTx.productVariant.findUnique.mockResolvedValue({ ...makeVariant(10, 21000), id: "var-new" });
+
+    await replaceSale("old-sale", {
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-new", qty: 1, unitPrice: dec(25000) }],
+      payments: [{ channel: "CASH", amount: dec(25000) }],
+    });
+
+    expect(mockTx.saleLine.create.mock.calls[0][0].data.unitCostAtSale.toString()).toBe("21000");
+  });
+
+  it("keeps the sale's invoice number instead of issuing a new one", async () => {
+    const { replaceSale } = await import("@/lib/posting/sale");
+    seedReplace([{ variantId: "var-1", qty: 1, unitCostAtSale: 15000 }]);
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(10, 21000));
+
+    await replaceSale("old-sale", {
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-1", qty: 1, unitPrice: dec(20000) }],
+      payments: [{ channel: "CASH", amount: dec(20000) }],
+    });
+
+    expect(mockTx.sale.create.mock.calls[0][0].data.invoiceNo).toBe("2026-007");
+    expect(mockTx.sale.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("uses the qty-weighted original cost when a tyre was on several lines", async () => {
+    const { replaceSale } = await import("@/lib/posting/sale");
+    seedReplace([
+      { variantId: "var-1", qty: 1, unitCostAtSale: 10000 },
+      { variantId: "var-1", qty: 3, unitCostAtSale: 14000 },
+    ]);
+    mockTx.productVariant.findUnique.mockResolvedValue(makeVariant(10, 21000));
+
+    await replaceSale("old-sale", {
+      date: new Date(),
+      recordedById: "user-1",
+      lines: [{ variantId: "var-1", qty: 4, unitPrice: dec(20000) }],
+      payments: [{ channel: "CASH", amount: dec(80000) }],
+    });
+
+    // (1×10000 + 3×14000) / 4 = 13000
+    expect(mockTx.saleLine.create.mock.calls[0][0].data.unitCostAtSale.toString()).toBe("13000");
   });
 });
 

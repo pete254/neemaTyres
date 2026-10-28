@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { postSupplierPayment } from "@/lib/posting";
 import { logAction } from "@/lib/audit";
+import { describeSupplierPayment, supplierPaymentSnap } from "@/lib/auditDetail";
 
 export const runtime = "nodejs";
 
@@ -31,9 +32,9 @@ export async function POST(req: NextRequest) {
       recordedById: userId,
     });
 
+    const snap = await supplierPaymentSnap(payment);
     await logAction(userId, "CREATE_SUPPLIER_PAYMENT", "SupplierPayment", payment.id,
-      `Supplier payment KES ${amt.toFixed(2)}`,
-      { supplierId: body.supplierId, amount: amt.toFixed(2), source: "mobile" });
+      describeSupplierPayment(snap, "Paid"), { supplierId: body.supplierId, payment: snap, source: "mobile" });
 
     return Response.json({ success: true });
   } catch (err) {

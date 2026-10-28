@@ -5,6 +5,7 @@ import { deleteSale, replaceSale } from "@/lib/posting";
 import { getSaleById } from "@/lib/queries/saleById";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import { logAction } from "@/lib/audit";
+import { saleSnapshot, describeSaleEdited, describeSaleDeleted } from "@/lib/auditDetail";
 import Decimal from "decimal.js";
 
 export const runtime = "nodejs";
@@ -58,8 +59,9 @@ export async function PATCH(
   }
 
   // Delete + re-post in one transaction: a failed edit leaves the original sale intact.
-  let updated;
+  let updated, before;
   try {
+    before = await saleSnapshot(id);
     updated = await replaceSale(id, {
       customerId,
       date: new Date(body.date + "T00:00:00Z"),
@@ -78,9 +80,9 @@ export async function PATCH(
     return Response.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });
   }
 
-  await logAction(userId, "UPDATE_SALE", "Sale", updated.id,
-    `Sale edited via mobile — ${body.lines.length} line(s)`,
-    { previousSaleId: id, source: "mobile" });
+  const after = await saleSnapshot(updated.id);
+  await logAction(userId, "UPDATE_SALE", "Sale", updated.id, describeSaleEdited(before, after),
+    { previousSaleId: id, before, after, source: "mobile" });
 
   return ok({ id: updated.id });
 }
@@ -94,8 +96,9 @@ export async function DELETE(
 
   const { id } = await params;
   try {
+    const snap = await saleSnapshot(id);
     await deleteSale(id);
-    await logAction(userId, "DELETE_SALE", "Sale", id, `Sale deleted via mobile`, { source: "mobile" });
+    await logAction(userId, "DELETE_SALE", "Sale", id, describeSaleDeleted(snap), { sale: snap, source: "mobile" });
     return Response.json({ ok: true });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });

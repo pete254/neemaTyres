@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import Decimal from "decimal.js";
 import { postDebtCollection } from "@/lib/posting";
 import { logAction } from "@/lib/audit";
+import { customerName, describeDebtCollection } from "@/lib/auditDetail";
 
 export async function createDebtCollection(formData: FormData) {
   const session = await auth();
@@ -23,7 +24,7 @@ export async function createDebtCollection(formData: FormData) {
   });
 
   await logAction(session.user.id, "CREATE_DEBT_COLLECTION", "DebtCollection", col.id,
-    `Debt collection KES ${amt.toFixed(2)} via ${col.channel}`,
+    describeDebtCollection({ ...col, customer: await customerName(customerId) }),
     { customerId, amount: amt.toFixed(2), channel: col.channel });
 
   revalidatePath("/debtors");

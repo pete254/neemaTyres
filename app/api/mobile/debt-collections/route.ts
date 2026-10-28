@@ -4,6 +4,7 @@ import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { postDebtCollection } from "@/lib/posting";
 import type { CollectionChannel } from "@/lib/posting/types";
 import { logAction } from "@/lib/audit";
+import { customerName, describeDebtCollection } from "@/lib/auditDetail";
 
 export const runtime = "nodejs";
 
@@ -35,8 +36,8 @@ export async function POST(req: NextRequest) {
     });
 
     await logAction(userId, "CREATE_DEBT_COLLECTION", "DebtCollection", col.id,
-      `Debt collection KES ${amt.toFixed(2)} via ${col.channel}`,
-      { customerId: body.customerId, amount: amt.toFixed(2), channel: col.channel });
+      describeDebtCollection({ ...col, customer: await customerName(body.customerId) }),
+      { customerId: body.customerId, amount: amt.toFixed(2), channel: col.channel, source: "mobile" });
 
     return Response.json({ success: true });
   } catch (err) {

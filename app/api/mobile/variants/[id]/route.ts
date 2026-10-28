@@ -3,6 +3,7 @@ import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { ok } from "@/app/api/mobile/_serialize";
 import { prisma } from "@/lib/prisma";
 import { logAction } from "@/lib/audit";
+import { describeVariantEdited, variantSnapshot } from "@/lib/auditDetail";
 
 export const runtime = "nodejs";
 
@@ -65,6 +66,7 @@ export async function PATCH(
   const sizeInput = (body.sizeBucket as string | undefined)?.trim();
   const sizeBucket = sizeInput || deriveSizeBucket(sizeCanonical);
 
+  const before = await variantSnapshot(id);
   const variant = await prisma.productVariant.update({
     where: { id },
     data: {
@@ -78,9 +80,9 @@ export async function PATCH(
     },
   });
 
+  const after = await variantSnapshot(id);
   await logAction(userId, "UPDATE_VARIANT", "ProductVariant", variant.id,
-    `Updated ${sizeCanonical} ${brandName} [${position}] via mobile`,
-    { source: "mobile" });
+    describeVariantEdited(before, after), { before, after, source: "mobile" });
 
   return ok(variant);
 }

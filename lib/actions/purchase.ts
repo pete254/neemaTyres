@@ -6,6 +6,9 @@ import { auth } from "@/auth";
 import Decimal from "decimal.js";
 import { postPurchase, deletePurchase } from "@/lib/posting";
 import { logAction } from "@/lib/audit";
+import {
+  purchaseSnapshot, describePurchaseCreated, describePurchaseEdited, describePurchaseDeleted,
+} from "@/lib/auditDetail";
 
 export async function createPurchase(formData: FormData) {
   const session = await auth();
@@ -30,9 +33,9 @@ export async function createPurchase(formData: FormData) {
     lines,
   });
 
+  const snap = await purchaseSnapshot(purchase.id);
   await logAction(session.user.id, "CREATE_PURCHASE", "Purchase", purchase.id,
-    `Purchase of ${lines.length} line(s), terms ${terms}`,
-    { terms, lineCount: lines.length });
+    describePurchaseCreated(snap), { purchase: snap });
 
   revalidatePath("/inventory");
   revalidatePath("/suppliers");
@@ -58,12 +61,13 @@ export async function updatePurchase(purchaseId: string, formData: FormData) {
 
   const { supplierId, terms, date, lines } = parsePurchaseFormData(formData);
 
+  const before = await purchaseSnapshot(purchaseId);
   await deletePurchase(purchaseId);
   const updated = await postPurchase({ supplierId: supplierId || undefined, date, terms, recordedById: session.user.id, lines });
 
+  const after = await purchaseSnapshot(updated.id);
   await logAction(session.user.id, "UPDATE_PURCHASE", "Purchase", updated.id,
-    `Purchase updated — ${lines.length} line(s), terms ${terms}`,
-    { previousPurchaseId: purchaseId });
+    describePurchaseEdited(before, after), { previousPurchaseId: purchaseId, before, after });
 
   revalidatePath("/purchases");
   revalidatePath("/inventory");
@@ -78,9 +82,10 @@ export async function deletePurchaseAction(formData: FormData) {
   const purchaseId = formData.get("purchaseId") as string;
   if (!purchaseId) throw new Error("purchaseId required");
 
+  const snap = await purchaseSnapshot(purchaseId);
   await deletePurchase(purchaseId);
   await logAction(session.user.id, "DELETE_PURCHASE", "Purchase", purchaseId,
-    `Purchase ${purchaseId} deleted — WAC reversed`);
+    describePurchaseDeleted(snap), { purchase: snap });
 
   revalidatePath("/purchases");
   revalidatePath("/inventory");

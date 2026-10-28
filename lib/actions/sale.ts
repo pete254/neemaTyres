@@ -7,6 +7,7 @@ import Decimal from "decimal.js";
 import { postSale, deleteSale, replaceSale } from "@/lib/posting";
 import { upsertCustomerByName } from "@/lib/domain/customer";
 import { logAction } from "@/lib/audit";
+import { saleSnapshot, describeSaleCreated, describeSaleEdited, describeSaleDeleted } from "@/lib/auditDetail";
 
 export async function createSale(formData: FormData) {
   const session = await auth();
@@ -41,9 +42,8 @@ export async function createSale(formData: FormData) {
     payments,
   });
 
-  await logAction(session.user.id, "CREATE_SALE", "Sale", sale.id,
-    `Sale of ${lines.length} line(s), total KES ${sale.totalAmount}`,
-    { totalAmount: sale.totalAmount.toString(), lineCount: lines.length });
+  const snap = await saleSnapshot(sale.id);
+  await logAction(session.user.id, "CREATE_SALE", "Sale", sale.id, describeSaleCreated(snap), { sale: snap });
 
   revalidatePath("/inventory");
   revalidatePath("/debtors");
@@ -76,6 +76,7 @@ export async function updateSale(saleId: string, formData: FormData) {
     amount: new Decimal(p.amount),
   }));
 
+  const before = await saleSnapshot(saleId);
   // Delete + re-post in one transaction: a failed edit leaves the original sale intact.
   const updated = await replaceSale(saleId, {
     customerId: customerId || undefined,
@@ -85,9 +86,9 @@ export async function updateSale(saleId: string, formData: FormData) {
     payments,
   });
 
+  const after = await saleSnapshot(updated.id);
   await logAction(session.user.id, "UPDATE_SALE", "Sale", updated.id,
-    `Sale updated — ${lines.length} line(s), total KES ${updated.totalAmount}`,
-    { previousSaleId: saleId, totalAmount: updated.totalAmount.toString() });
+    describeSaleEdited(before, after), { previousSaleId: saleId, before, after });
 
   revalidatePath("/sales");
   revalidatePath("/inventory");
@@ -103,9 +104,9 @@ export async function deleteSaleAction(formData: FormData) {
   const saleId = formData.get("saleId") as string;
   if (!saleId) throw new Error("saleId required");
 
+  const snap = await saleSnapshot(saleId);
   await deleteSale(saleId);
-  await logAction(session.user.id, "DELETE_SALE", "Sale", saleId,
-    `Sale ${saleId} deleted — stock restored`);
+  await logAction(session.user.id, "DELETE_SALE", "Sale", saleId, describeSaleDeleted(snap), { sale: snap });
 
   revalidatePath("/sales");
   revalidatePath("/inventory");

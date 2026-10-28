@@ -57,33 +57,64 @@ export async function postSale(input: PostSaleInput) {
  * Edits a sale: removes the old one (restoring its stock) and posts the new
  * version in ONE transaction. If posting the new version fails for any reason,
  * the original sale is left exactly as it was.
+ *
+ * Tyres already on the sale keep the cost they were originally sold at, so an
+ * edit made after later purchases doesn't re-cost the sale at today's WAC.
+ * Tyres added by the edit are costed at current WAC. The sale keeps its
+ * invoice number.
  */
 export async function replaceSale(oldSaleId: string, input: PostSaleInput) {
   validateSaleInput(input);
   return prisma.$transaction(async (tx) => {
+    const { invoiceNo } = await tx.sale.findUniqueOrThrow({
+      where: { id: oldSaleId },
+      select: { invoiceNo: true },
+    });
     const old = await tx.saleLine.findMany({
       where: { saleId: oldSaleId },
-      select: { variantId: true },
+      select: { variantId: true, qty: true, unitCostAtSale: true },
     });
+    // Qty-weighted original cost per tyre (a tyre can appear on several lines).
+    const totals = new Map<string, { qty: number; cost: Decimal }>();
+    for (const l of old) {
+      const t = totals.get(l.variantId) ?? { qty: 0, cost: new Decimal(0) };
+      t.qty += l.qty;
+      t.cost = t.cost.plus(new Decimal(l.unitCostAtSale.toString()).mul(l.qty));
+      totals.set(l.variantId, t);
+    }
+    const originalCosts = new Map(
+      [...totals].filter(([, t]) => t.qty > 0).map(([id, t]) => [id, t.cost.div(t.qty)])
+    );
     // Lock old + new tyres together, in one sorted pass, before touching stock.
     await lockVariants(tx, [...old.map((l) => l.variantId), ...input.lines.map((l) => l.variantId)]);
     await deleteSaleInTx(tx, oldSaleId);
-    return postSaleInTx(tx, input);
+    return postSaleInTx(tx, input, { originalCosts, invoiceNo });
   });
 }
 
-async function postSaleInTx(tx: Tx, input: PostSaleInput) {
-  const linesTotal = validateSaleInput(input);
-  await lockVariants(tx, input.lines.map((l) => l.variantId));
-
-  const year = input.date.getFullYear();
+async function nextInvoiceNo(tx: Tx, date: Date) {
+  const year = date.getFullYear();
   const lastInvoice = await tx.sale.findFirst({
     where: { invoiceNo: { startsWith: `${year}-` } },
     orderBy: { invoiceNo: "desc" },
     select: { invoiceNo: true },
   });
   const lastNum = lastInvoice?.invoiceNo ? parseInt(lastInvoice.invoiceNo.split("-")[1], 10) : 0;
-  const invoiceNo = `${year}-${String(lastNum + 1).padStart(3, "0")}`;
+  return `${year}-${String(lastNum + 1).padStart(3, "0")}`;
+}
+
+async function postSaleInTx(
+  tx: Tx,
+  input: PostSaleInput,
+  { originalCosts = new Map(), invoiceNo: keepInvoiceNo = null }: {
+    originalCosts?: Map<string, Decimal>;
+    invoiceNo?: string | null;
+  } = {}
+) {
+  const linesTotal = validateSaleInput(input);
+  await lockVariants(tx, input.lines.map((l) => l.variantId));
+
+  const invoiceNo = keepInvoiceNo ?? (await nextInvoiceNo(tx, input.date));
 
   const sale = await tx.sale.create({
     data: {
@@ -112,7 +143,8 @@ async function postSaleInTx(tx: Tx, input: PostSaleInput) {
       });
     }
 
-    const unitCostAtSale = new Decimal(variant.wacCost.toString());
+    const unitCostAtSale =
+      originalCosts.get(line.variantId) ?? new Decimal(variant.wacCost.toString());
     const newQty = variant.qtyOnHand - line.qty;
 
     // Selling ahead of the purchase being recorded is allowed (business rule);

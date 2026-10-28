@@ -4,6 +4,7 @@ import { verifyMobileToken, unauthorized } from "@/app/api/mobile/_auth";
 import { postReturn } from "@/lib/posting";
 import type { ReturnType } from "@/lib/posting/types";
 import { logAction } from "@/lib/audit";
+import { describeReturn, variantName } from "@/lib/auditDetail";
 
 export const runtime = "nodejs";
 
@@ -41,8 +42,8 @@ export async function POST(req: NextRequest) {
     });
 
     await logAction(userId, "CREATE_RETURN", "Return", ret.id,
-      `${body.type} — qty ${body.qty} @ KES ${uv.toFixed(2)}`,
-      { type: body.type, variantId: body.variantId, qty: body.qty, source: "mobile" });
+      describeReturn({ ...ret, tyre: await variantName(body.variantId), note: body.note }),
+      { type: body.type, variantId: body.variantId, qty: body.qty, unitValue: uv.toFixed(2), source: "mobile" });
 
     return Response.json({ success: true });
   } catch (err) {

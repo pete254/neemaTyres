@@ -9,7 +9,12 @@ const ACTION_LABELS: Record<string, string> = {
   DELETE_PURCHASE: "Purchase Deleted",
   CREATE_DEBT_COLLECTION: "Debt Collection",
   CREATE_SUPPLIER_PAYMENT: "Supplier Payment",
+  UPDATE_SUPPLIER_PAYMENT: "Supplier Payment Updated",
+  DELETE_SUPPLIER_PAYMENT: "Supplier Payment Deleted",
   CREATE_RETURN: "Return",
+  CREATE_VARIANT: "Tyre Added",
+  UPDATE_VARIANT: "Tyre Updated",
+  DELETE_VARIANT: "Tyre Deleted",
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -21,7 +26,11 @@ const ACTION_COLORS: Record<string, string> = {
   DELETE_PURCHASE: "text-red-400 bg-red-900/30 border-red-800",
   CREATE_DEBT_COLLECTION: "text-orange-400 bg-orange-900/30 border-orange-800",
   CREATE_SUPPLIER_PAYMENT: "text-purple-400 bg-purple-900/30 border-purple-800",
+  UPDATE_SUPPLIER_PAYMENT: "text-yellow-400 bg-yellow-900/30 border-yellow-800",
+  DELETE_SUPPLIER_PAYMENT: "text-red-400 bg-red-900/30 border-red-800",
   CREATE_RETURN: "text-pink-400 bg-pink-900/30 border-pink-800",
+  UPDATE_VARIANT: "text-yellow-400 bg-yellow-900/30 border-yellow-800",
+  DELETE_VARIANT: "text-red-400 bg-red-900/30 border-red-800",
 };
 
 export default async function HistoryPage({
@@ -63,13 +72,22 @@ export default async function HistoryPage({
           const label = ACTION_LABELS[log.action] ?? log.action;
           const meta = log.metadata as Record<string, unknown> | null;
           const source = meta?.source === "mobile" ? " · Mobile" : " · Web";
+          // First line is the headline; the rest is the full transaction / what changed.
+          const [headline, ...details] = log.description.split("\n");
           return (
             <div key={log.id} className="flex items-start gap-4 bg-[#111] border border-[#2A2A2A] rounded-lg px-4 py-3">
               <span className={`shrink-0 text-xs font-semibold border rounded px-2 py-0.5 mt-0.5 ${colorClass}`}>
                 {label}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{log.description}</p>
+                <p className="text-sm text-white">{headline}</p>
+                {details.length > 0 && (
+                  <div className="text-xs text-zinc-400 mt-1 space-y-0.5">
+                    {details.map((line, i) => (
+                      <p key={i} className={line === "Now:" ? "text-zinc-500 pt-1" : undefined}>{line}</p>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-zinc-500 mt-0.5">
                   {log.user.name} · {new Date(log.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}{source}
                 </p>

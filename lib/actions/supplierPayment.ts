@@ -10,18 +10,25 @@ import {
   deleteSupplierPayment,
 } from "@/lib/posting";
 import { logAction } from "@/lib/audit";
+import {
+  describeSupplierPayment, describeSupplierPaymentEdited, supplierPaymentSnap,
+} from "@/lib/auditDetail";
 
 export async function createSupplierPayment(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
 
-  await postSupplierPayment({
+  const payment = await postSupplierPayment({
     supplierId: formData.get("supplierId") as string,
     amount: new Decimal(formData.get("amount") as string),
     date: new Date(formData.get("date") as string),
     note: (formData.get("note") as string) || undefined,
     recordedById: session.user.id,
   });
+
+  const snap = await supplierPaymentSnap(payment);
+  await logAction(session.user.id, "CREATE_SUPPLIER_PAYMENT", "SupplierPayment", payment.id,
+    describeSupplierPayment(snap, "Paid"), { supplierId: payment.supplierId, payment: snap });
 
   revalidatePath("/suppliers");
   redirect("/supplier-payments/new?success=1");
@@ -43,12 +50,10 @@ export async function editSupplierPayment(paymentId: string, formData: FormData)
     note: (formData.get("note") as string) || undefined,
   });
 
+  const [beforeSnap, afterSnap] = await Promise.all([supplierPaymentSnap(before), supplierPaymentSnap(after)]);
   await logAction(session.user.id, "UPDATE_SUPPLIER_PAYMENT", "SupplierPayment", paymentId,
-    `Supplier payment edited — ${before.amount.toString()} → ${after.amount.toString()}`,
-    {
-      before: { supplierId: before.supplierId, amount: before.amount.toString(), date: before.date, note: before.note },
-      after: { supplierId: after.supplierId, amount: after.amount.toString(), date: after.date, note: after.note },
-    });
+    describeSupplierPaymentEdited(beforeSnap, afterSnap),
+    { before: beforeSnap, after: afterSnap, supplierIds: [before.supplierId, after.supplierId] });
 
   revalidatePath("/suppliers");
   revalidatePath(`/suppliers/${before.supplierId}`);
@@ -63,9 +68,9 @@ export async function removeSupplierPayment(paymentId: string) {
 
   const payment = await deleteSupplierPayment(paymentId);
 
+  const snap = await supplierPaymentSnap(payment);
   await logAction(session.user.id, "DELETE_SUPPLIER_PAYMENT", "SupplierPayment", paymentId,
-    `Supplier payment deleted — ${payment.amount.toString()}`,
-    { supplierId: payment.supplierId, amount: payment.amount.toString(), date: payment.date, note: payment.note });
+    describeSupplierPayment(snap, "Deleted payment"), { supplierId: payment.supplierId, payment: snap });
 
   revalidatePath("/suppliers");
   revalidatePath(`/suppliers/${payment.supplierId}`);

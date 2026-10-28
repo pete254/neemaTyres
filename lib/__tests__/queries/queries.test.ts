@@ -79,6 +79,7 @@ describe("getCustomerDebt", () => {
       id: "c1",
       name: "Jane",
       phone: null,
+      openingBalanceEntries: [],
       sales: [
         {
           id: "s1",
@@ -109,6 +110,7 @@ describe("getCustomerDebt", () => {
       id: "c2",
       name: "Bob",
       phone: null,
+      openingBalanceEntries: [],
       sales: [
         {
           id: "s3",
@@ -348,6 +350,7 @@ describe("getDebtorsAged", () => {
         id: "c1",
         name: "Jane",
         phone: null,
+        openingBalanceEntries: [],
         sales: [
           {
             id: "s1",
@@ -381,6 +384,7 @@ describe("getDebtorsAged", () => {
         id: "c2",
         name: "Zero",
         phone: null,
+        openingBalanceEntries: [],
         sales: [
           {
             id: "s1",
@@ -402,12 +406,12 @@ describe("getDebtorsAged", () => {
 
     vi.mocked(prisma.customer.findMany).mockResolvedValue([
       {
-        id: "c1", name: "A", phone: null,
+        id: "c1", name: "A", phone: null, openingBalanceEntries: [],
         sales: [{ id: "s1", date: now, payments: [{ channel: "DEBT", amount: { toString: () => "10000" } }] }],
         debtCollections: [],
       },
       {
-        id: "c2", name: "B", phone: null,
+        id: "c2", name: "B", phone: null, openingBalanceEntries: [],
         sales: [{ id: "s2", date: now, payments: [{ channel: "DEBT", amount: { toString: () => "20000" } }] }],
         debtCollections: [],
       },

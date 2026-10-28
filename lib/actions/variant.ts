@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logAction } from "@/lib/audit";
+import { describeVariantEdited, variantSnapshot } from "@/lib/auditDetail";
 
 function deriveSizeBucket(canonical: string): string {
   const m = canonical.match(/[Rr](\d+\.?\d*)$/);
@@ -72,6 +73,7 @@ export async function updateVariant(id: string, formData: FormData) {
     update: {},
   });
 
+  const before = await variantSnapshot(id);
   const variant = await prisma.productVariant.update({
     where: { id },
     data: {
@@ -85,8 +87,9 @@ export async function updateVariant(id: string, formData: FormData) {
     },
   });
 
+  const after = await variantSnapshot(id);
   await logAction(session.user.id, "UPDATE_VARIANT", "ProductVariant", variant.id,
-    `Updated ${sizeCanonical} ${brandName} [${position}]`);
+    describeVariantEdited(before, after), { before, after });
 
   revalidatePath("/inventory");
   revalidatePath("/purchases/new");
